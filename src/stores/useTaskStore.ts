@@ -10,10 +10,22 @@ const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
 };
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** YYYY-MM-DD en heure LOCALE (pas UTC). Indispensable pour ne pas se prendre +/- 1 jour à cause du fuseau. */
+export function toLocalISODate(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** YYYY-MM-DDTHH:mm en heure LOCALE. */
+export function toLocalISODateTime(d: Date): string {
+  return `${toLocalISODate(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 function todayISO(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(new Date());
 }
 
 function isPastDate(iso: string): boolean {
@@ -77,7 +89,7 @@ function carryOverPastTasks(tasks: Task[]): { tasks: Task[]; changed: boolean } 
       return {
         ...t,
         isCarriedOver: true,
-        originalDate: t.originalDate || (t.scheduledDate?.slice(0, 10) ?? t.createdDate),
+        originalDate: t.originalDate || (t.scheduledDate ? t.scheduledDate.slice(0, 10) : t.createdDate),
         scheduledDate: today,
       };
     }
@@ -167,7 +179,7 @@ export function useTaskStore(): TaskStore {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
-    const iso = tomorrow.toISOString().slice(0, 10);
+    const iso = toLocalISODate(tomorrow);
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, scheduledDate: iso, isCarriedOver: false } : t))
     );

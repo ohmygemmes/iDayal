@@ -59,7 +59,11 @@ export function SwipeCard({ task, depth, onDone, onPostpone }: Props) {
   const postponeOpacity = isTop ? Math.max(0, Math.min(1, -state.dx / limit)) : 0;
 
   return (
-    <div ref={ref} className="absolute inset-0 select-none" style={style}>
+    <div
+      ref={ref}
+      className="absolute inset-0 select-none"
+      style={{ ...style, touchAction: isTop ? 'none' : 'auto' }}
+    >
       <div className="relative w-full h-full bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border border-black/5 dark:border-white/10 flex flex-col items-center justify-center p-8">
         {task.isCarriedOver && (
           <span className="absolute top-4 left-4 text-idayal-orange text-xs font-medium flex items-center gap-1">
