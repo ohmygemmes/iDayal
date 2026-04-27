@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, system-ui,
+    sans-serif;
+  background: #f8f9fa;
+  color: #2d3436;
+  overscroll-behavior-y: contain;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html.dark body {
+  background: #1a1a2e;
+  color: #f4f4f5;
+}
+
+/* Conteneur "iPhone" : occupe toute la hauteur, centré sur desktop. */
+.app-shell {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  margin: 0 auto;
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+html.dark .app-shell {
+  background: #1a1a2e;
+}
+
+@media (min-width: 640px) {
+  .app-shell {
+    border-radius: 28px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+    height: calc(100dvh - 32px);
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* iOS safe-area helpers */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+
+input[type='time'] {
+  color-scheme: light dark;
+}
