@@ -92,75 +92,77 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   const text = input;
   const lowered = input.toLowerCase();
 
+  // Suffixe optionnel pour une heure : "à 12", "à 12h", "12h", "12h30", "12:30", "12"
+  // Capture les heures dans le groupe N et les minutes dans le groupe N+1.
+  // Le "à" est optionnel ; "h" ou ":" sont optionnels (mais on a au moins un chiffre).
+  const TIME = '(?:\\s+(?:à\\s+)?(\\d{1,2})(?:[h:](\\d{2})?)?)?';
+
+  function buildTime(base: Date, hStr?: string, mStr?: string): Date | null {
+    if (!hStr) return base;
+    const hour = parseInt(hStr, 10);
+    const minute = mStr ? parseInt(mStr, 10) : 0;
+    if (hour > 23 || minute > 59) return null;
+    return applyTime(base, hour, minute);
+  }
+
   // On essaie les motifs du plus spécifique au moins spécifique.
   const builders: Array<{
     regex: RegExp;
     build: (m: RegExpExecArray, now: Date) => Date | null;
   }> = [
-    // "le 15 avril à 10h30" / "le 15 avril à 14h"
+    // "le 15 avril [à] [12[h[30]]]"
     {
-      regex: new RegExp(
-        `\\ble\\s+(\\d{1,2})\\s+${MONTH_PATTERN}(?:\\s+à\\s+(\\d{1,2})h(\\d{2})?)?\\b`,
-        'i'
-      ),
+      regex: new RegExp(`\\ble\\s+(\\d{1,2})\\s+${MONTH_PATTERN}${TIME}\\b`, 'i'),
       build: (m, n) => {
         const day = parseInt(m[1], 10);
         const month = MONTHS[m[2].toLowerCase()];
         if (month === undefined) return null;
-        const hour = m[3] ? parseInt(m[3], 10) : 0;
-        const minute = m[4] ? parseInt(m[4], 10) : 0;
         let year = n.getFullYear();
-        const candidate = new Date(year, month, day, hour, minute, 0, 0);
-        if (candidate.getTime() < startOfDay(n).getTime()) {
-          candidate.setFullYear(year + 1);
+        const base = new Date(year, month, day, 0, 0, 0, 0);
+        const dt = buildTime(base, m[3], m[4]);
+        if (!dt) return null;
+        if (dt.getTime() < startOfDay(n).getTime()) {
+          dt.setFullYear(year + 1);
         }
-        return candidate;
+        return dt;
       },
     },
-    // "après-demain à 14h30"
+    // "après-demain [à] [12[h[30]]]"
     {
-      regex: /\baprès[-\s]demain(?:\s+à\s+(\d{1,2})h(\d{2})?)?\b/i,
+      regex: new RegExp(`\\baprès[-\\s]demain${TIME}\\b`, 'i'),
       build: (m, n) => {
         const d = startOfDay(n);
         d.setDate(d.getDate() + 2);
-        const hour = m[1] ? parseInt(m[1], 10) : 0;
-        const minute = m[2] ? parseInt(m[2], 10) : 0;
-        return m[1] ? applyTime(d, hour, minute) : d;
+        return buildTime(d, m[1], m[2]);
       },
     },
-    // "demain à 14h30"
+    // "demain [à] [12[h[30]]]"
     {
-      regex: /\bdemain(?:\s+à\s+(\d{1,2})h(\d{2})?)?\b/i,
+      regex: new RegExp(`\\bdemain${TIME}\\b`, 'i'),
       build: (m, n) => {
         const d = startOfDay(n);
         d.setDate(d.getDate() + 1);
-        const hour = m[1] ? parseInt(m[1], 10) : 0;
-        const minute = m[2] ? parseInt(m[2], 10) : 0;
-        return m[1] ? applyTime(d, hour, minute) : d;
+        return buildTime(d, m[1], m[2]);
       },
     },
-    // "lundi prochain à 10h"
+    // "lundi prochain [à] [10[h]]"
     {
-      regex: new RegExp(`\\b${WEEKDAY_PATTERN}\\s+prochain(?:\\s+à\\s+(\\d{1,2})h(\\d{2})?)?\\b`, 'i'),
+      regex: new RegExp(`\\b${WEEKDAY_PATTERN}\\s+prochain${TIME}\\b`, 'i'),
       build: (m, n) => {
         const wd = WEEKDAYS[m[1].toLowerCase()];
         if (wd === undefined) return null;
         const d = nextWeekday(wd, n, true);
-        const hour = m[2] ? parseInt(m[2], 10) : 0;
-        const minute = m[3] ? parseInt(m[3], 10) : 0;
-        return m[2] ? applyTime(d, hour, minute) : d;
+        return buildTime(d, m[2], m[3]);
       },
     },
-    // "lundi à 10h"
+    // "lundi [à] [10[h]]"
     {
-      regex: new RegExp(`\\b${WEEKDAY_PATTERN}(?:\\s+à\\s+(\\d{1,2})h(\\d{2})?)?\\b`, 'i'),
+      regex: new RegExp(`\\b${WEEKDAY_PATTERN}${TIME}\\b`, 'i'),
       build: (m, n) => {
         const wd = WEEKDAYS[m[1].toLowerCase()];
         if (wd === undefined) return null;
         const d = nextWeekday(wd, n, false);
-        const hour = m[2] ? parseInt(m[2], 10) : 0;
-        const minute = m[3] ? parseInt(m[3], 10) : 0;
-        return m[2] ? applyTime(d, hour, minute) : d;
+        return buildTime(d, m[2], m[3]);
       },
     },
     // "dans 3 jours"
@@ -183,22 +185,22 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
         return d;
       },
     },
-    // "à 14h30" / "à 9h" — uniquement à la fin pour éviter de capturer dans "le X mois à Yh"
+    // "à 14h30" / "à 14" (hour seul avec à) — pas de \b avant "à" car ce n'est pas un word char.
     {
-      regex: /\bà\s+(\d{1,2})h(\d{2})?\b/i,
-      build: (m, n) => {
-        const hour = parseInt(m[1], 10);
-        const minute = m[2] ? parseInt(m[2], 10) : 0;
-        if (hour > 23 || minute > 59) return null;
-        return applyTime(startOfDay(n), hour, minute);
-      },
+      regex: /(?:^|\s)à\s+(\d{1,2})(?:[h:](\d{2})?)?\b/i,
+      build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
+    },
+    // "14h30" / "14h" / "14:30" (sans à, mais 'h' ou ':' obligatoire pour lever l'ambiguïté)
+    {
+      regex: /\b(\d{1,2})[h:](\d{2})?\b/i,
+      build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
     },
   ];
 
   for (const { regex, build } of builders) {
     const match = findMatch(text, lowered, regex, build, now);
     if (match) {
-      return { cleanTitle: strip(original, match) || original.trim(), detectedDate: match.date };
+      return { cleanTitle: strip(original, match), detectedDate: match.date };
     }
   }
 
