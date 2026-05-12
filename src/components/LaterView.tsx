@@ -83,32 +83,50 @@ export function LaterView({ tasks, onToggle, onDelete }: Props) {
   return (
     <div className="flex flex-col h-full">
       <header
-        className="px-4 pt-4 pb-3"
+        className="px-5 pt-4 pb-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
       >
-        <h1 className="text-2xl font-semibold text-idayal-text dark:text-zinc-100">Plus tard</h1>
-        <p className="text-sm text-idayal-text-secondary dark:text-zinc-400">
-          {tasks.length} tâche{tasks.length !== 1 ? 's' : ''} planifiée
-          {tasks.length !== 1 ? 's' : ''}
+        <p className="text-[12px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 mb-0.5">
+          À venir
+        </p>
+        <h1 className="text-[28px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2 leading-none">
+          Plus tard
+        </h1>
+        <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1.5">
+          <span className="tabular font-semibold text-idayal-text dark:text-zinc-200">
+            {tasks.length}
+          </span>{' '}
+          tâche{tasks.length !== 1 ? 's' : ''} planifiée{tasks.length !== 1 ? 's' : ''}
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-32">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-32">
         {groups.length === 0 && (
-          <div className="text-center text-idayal-text-secondary dark:text-zinc-400 mt-16 px-6">
-            <div className="text-4xl mb-3">🗓</div>
-            <p>Pas de tâche planifiée.</p>
-            <p className="text-sm mt-1">
-              Essaie « rendez-vous le 15 avril » ou « appeler maman dans 3 jours ».
+          <div className="flex flex-col items-center text-center mt-20 px-6">
+            <div className="w-16 h-16 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 flex items-center justify-center text-3xl mb-4">
+              🗓
+            </div>
+            <p className="text-[17px] font-semibold text-idayal-text dark:text-zinc-100">
+              Rien de prévu
+            </p>
+            <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1 max-w-[280px]">
+              Essaie <span className="text-idayal-blue font-medium">« rdv le 15 avril »</span> ou{' '}
+              <span className="text-idayal-blue font-medium">« appeler maman dans 3 jours »</span>.
             </p>
           </div>
         )}
 
         {groups.map((g) => (
-          <section key={g.key} className="mb-5">
-            <h2 className="px-1 mb-2 text-xs uppercase tracking-wide text-idayal-text-secondary dark:text-zinc-500">
-              {g.label}
-            </h2>
+          <section key={g.key} className="mb-6">
+            <div className="px-1 mb-2 flex items-center gap-2">
+              <h2 className="text-[11px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500">
+                {g.label}
+              </h2>
+              <span className="text-[11px] font-semibold text-idayal-blue tabular">
+                {g.items.length}
+              </span>
+              <span className="flex-1 h-px bg-idayal-border dark:bg-idayal-border-dark" />
+            </div>
             <ul>
               {g.items.map((t) => (
                 <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} showDate />

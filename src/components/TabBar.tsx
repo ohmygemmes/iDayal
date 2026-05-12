@@ -31,8 +31,8 @@ const TABS: Array<{ key: TabKey; label: string; icon: JSX.Element }> = [
     label: 'Cartes',
     icon: (
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="6" y="4" width="12" height="16" rx="2" />
-        <rect x="3" y="7" width="12" height="14" rx="2" opacity="0.5" />
+        <rect x="6" y="4" width="12" height="16" rx="2.5" />
+        <rect x="3" y="7" width="12" height="14" rx="2.5" opacity="0.45" />
       </svg>
     ),
   },
@@ -44,7 +44,7 @@ export function TabBar({ active, onChange }: Props) {
       className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-phone z-30"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="mx-3 mb-2 flex justify-around bg-white/85 dark:bg-idayal-bg-dark/80 backdrop-blur-md rounded-bar shadow-md border border-black/5 dark:border-white/10">
+      <div className="mx-3 mb-2 flex justify-around bg-white/85 dark:bg-idayal-bg-dark-elev/85 backdrop-blur-xl rounded-bar shadow-bar border border-idayal-border dark:border-idayal-border-dark">
         {TABS.map((t) => {
           const isActive = active === t.key;
           return (
@@ -52,16 +52,28 @@ export function TabBar({ active, onChange }: Props) {
               key={t.key}
               type="button"
               onClick={() => onChange(t.key)}
-              className={`flex-1 flex flex-col items-center justify-center py-2.5 transition-colors ${
-                isActive
-                  ? 'text-idayal-blue'
-                  : 'text-idayal-text-secondary dark:text-zinc-400'
-              }`}
+              className="flex-1 flex flex-col items-center justify-center pt-2 pb-1.5 transition-transform active:scale-95"
               aria-label={t.label}
               aria-current={isActive ? 'page' : undefined}
             >
-              {t.icon}
-              <span className="text-[11px] mt-0.5 font-medium">{t.label}</span>
+              <span
+                className={`flex items-center justify-center w-12 h-7 rounded-full transition-all duration-300 ${
+                  isActive
+                    ? 'bg-idayal-blue/12 dark:bg-idayal-blue/25 text-idayal-blue'
+                    : 'text-idayal-text-muted dark:text-zinc-400'
+                }`}
+              >
+                {t.icon}
+              </span>
+              <span
+                className={`text-[10.5px] mt-0.5 font-medium tracking-tightish transition-colors ${
+                  isActive
+                    ? 'text-idayal-blue'
+                    : 'text-idayal-text-muted dark:text-zinc-500'
+                }`}
+              >
+                {t.label}
+              </span>
             </button>
           );
         })}

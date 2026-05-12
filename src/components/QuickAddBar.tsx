@@ -94,21 +94,21 @@ export function QuickAddBar({ onAdd }: Props) {
     >
       {/* Aperçu de la date détectée / sélectionnée */}
       {effectiveScheduled && (
-        <div className="mb-1.5 flex justify-center">
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-idayal-blue/10 text-idayal-blue text-xs font-medium animate-fade-in">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <div className="mb-2 flex justify-center">
+          <span className="inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue text-[12px] font-medium animate-fade-in shadow-soft border border-idayal-blue/15">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="5" width="18" height="16" rx="2" />
               <path d="M3 9h18M8 3v4M16 3v4" />
             </svg>
-            {formatDateChip(effectiveScheduled)}
+            <span className="tabular">{formatDateChip(effectiveScheduled)}</span>
             {manualDate && (
               <button
                 type="button"
                 onClick={() => setManualDate('')}
                 aria-label="Retirer la date"
-                className="ml-1 -mr-1"
+                className="ml-0.5 -mr-1 w-4 h-4 rounded-full hover:bg-idayal-blue/15 flex items-center justify-center"
               >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
@@ -119,12 +119,12 @@ export function QuickAddBar({ onAdd }: Props) {
 
       {/* Picker date/heure (toggle) */}
       {showPicker && (
-        <div className="mb-1.5 flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-bar shadow-md border border-black/5 dark:border-white/10 px-3 py-2 animate-slide-in-up">
+        <div className="mb-2 flex items-center gap-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark px-3 py-2 animate-slide-in-up">
           <input
             type="datetime-local"
             value={manualDate}
             onChange={(e) => setManualDate(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-[14px] text-idayal-text dark:text-zinc-100"
+            className="flex-1 bg-transparent outline-none text-[14px] text-idayal-text dark:text-zinc-100 tabular"
           />
           <button
             type="button"
@@ -132,7 +132,7 @@ export function QuickAddBar({ onAdd }: Props) {
               setManualDate('');
               setShowPicker(false);
             }}
-            className="text-xs text-idayal-text-secondary px-2 py-1"
+            className="text-xs text-idayal-text-secondary px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             Annuler
           </button>
@@ -144,7 +144,7 @@ export function QuickAddBar({ onAdd }: Props) {
           e.preventDefault();
           submit();
         }}
-        className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-bar shadow-lg border border-black/5 dark:border-white/10 px-3 py-2"
+        className="flex items-center gap-1.5 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark pl-4 pr-2 py-2"
       >
         <input
           ref={inputRef}
@@ -156,8 +156,8 @@ export function QuickAddBar({ onAdd }: Props) {
               inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }, 200);
           }}
-          placeholder="Une tâche, ex: « courses demain à 10h »"
-          className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-idayal-text-secondary text-idayal-text dark:text-zinc-100"
+          placeholder="Ex : courses demain à 10h"
+          className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-idayal-text-muted text-idayal-text dark:text-zinc-100 tracking-tightish"
           enterKeyHint="send"
           autoComplete="off"
           autoCorrect="off"
@@ -166,10 +166,10 @@ export function QuickAddBar({ onAdd }: Props) {
           type="button"
           onClick={() => setShowPicker((v) => !v)}
           aria-label="Choisir une date"
-          className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-95 transition ${
+          className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-all ${
             showPicker || manualDate
-              ? 'bg-idayal-blue/15 text-idayal-blue'
-              : 'text-idayal-text-secondary'
+              ? 'bg-idayal-blue-soft text-idayal-blue dark:bg-idayal-blue/20'
+              : 'text-idayal-text-muted hover:text-idayal-blue hover:bg-zinc-100 dark:hover:bg-zinc-800'
           }`}
         >
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -181,7 +181,7 @@ export function QuickAddBar({ onAdd }: Props) {
           type="submit"
           aria-label="Ajouter la tâche"
           disabled={!value.trim()}
-          className="w-9 h-9 rounded-full bg-idayal-blue text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition"
+          className="w-9 h-9 rounded-full bg-idayal-blue text-white flex items-center justify-center disabled:opacity-30 disabled:bg-idayal-text-muted active:scale-90 transition-all shadow-[0_4px_12px_rgba(59,125,216,0.35)] disabled:shadow-none"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />

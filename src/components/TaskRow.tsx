@@ -31,33 +31,41 @@ export function TaskRow({ task, onToggle, onDelete, showDate = false }: Props) {
       }
     }
     if (!completed) {
-      // Animation slide-out avant complétion réelle.
       setExiting(true);
       window.setTimeout(() => {
         onToggle(task.id);
         setExiting(false);
-      }, 250);
+      }, 280);
     } else {
       onToggle(task.id);
     }
   };
 
   const dateLabel = formatScheduled(task.scheduledDate);
+  const carried = task.isCarriedOver && !completed;
 
   return (
     <li
-      className={`group relative flex items-start gap-3 px-3 py-3 mb-2 bg-white dark:bg-zinc-900/70 rounded-row shadow-sm animate-slide-in-up ${
-        task.isCarriedOver && !completed ? 'border-l-4 border-idayal-orange' : ''
-      } ${exiting ? 'animate-slide-out-right' : ''}`}
+      className={`group relative flex items-start gap-3 pl-3 pr-3 py-3 mb-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-row shadow-soft border border-idayal-border dark:border-idayal-border-dark animate-slide-in-up overflow-hidden ${
+        exiting ? 'animate-slide-out-right' : ''
+      }`}
     >
+      {/* Accent latéral pour les tâches reportées */}
+      {carried && (
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-[3px] bg-idayal-orange rounded-l-row"
+        />
+      )}
+
       <button
         type="button"
         onClick={handleToggle}
         aria-label={completed ? 'Marquer non fait' : 'Marquer comme fait'}
-        className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+        className={`mt-0.5 w-[26px] h-[26px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
           completed
-            ? 'bg-idayal-green border-idayal-green'
-            : 'border-zinc-300 dark:border-zinc-600 active:scale-90'
+            ? 'bg-idayal-green border-2 border-idayal-green shadow-[0_2px_8px_rgba(61,186,142,0.35)]'
+            : 'bg-transparent border-2 border-zinc-300 dark:border-zinc-600 hover:border-idayal-blue active:scale-90'
         }`}
       >
         {completed && (
@@ -67,27 +75,30 @@ export function TaskRow({ task, onToggle, onDelete, showDate = false }: Props) {
             height="14"
             fill="none"
             stroke="white"
-            strokeWidth="3"
+            strokeWidth="3.2"
             strokeLinecap="round"
             strokeLinejoin="round"
             className="animate-check-pop"
           >
-            <path d="M5 12l5 5L20 7" />
+            <path d="M5 12.5l4.5 4.5L20 7" />
           </svg>
         )}
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-start gap-2">
-          {task.isCarriedOver && !completed && (
-            <span className="text-idayal-orange text-sm" title="Reportée">
-              🕐
+        <div className="flex items-start gap-1.5">
+          {carried && (
+            <span className="text-idayal-orange text-[11px] font-medium mt-0.5 leading-snug tabular flex items-center gap-0.5" title="Reportée">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
             </span>
           )}
           <p
-            className={`text-[15px] leading-snug break-words ${
+            className={`text-[15px] leading-snug break-words tracking-tightish ${
               completed
-                ? 'text-idayal-text-secondary line-through'
+                ? 'text-idayal-text-muted line-through'
                 : 'text-idayal-text dark:text-zinc-100'
             }`}
           >
@@ -95,35 +106,38 @@ export function TaskRow({ task, onToggle, onDelete, showDate = false }: Props) {
           </p>
         </div>
         {showDate && dateLabel && !completed && (
-          <p className="text-xs text-idayal-blue mt-0.5">{dateLabel}</p>
+          <p className="text-[12px] text-idayal-blue mt-0.5 tabular font-medium">
+            {dateLabel}
+          </p>
         )}
       </div>
 
       {showDate && (
-        <svg
-          className="text-idayal-blue/70 mt-0.5"
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M3 9h18M8 3v4M16 3v4" />
-        </svg>
+        <span className="mt-0.5 w-7 h-7 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 flex items-center justify-center text-idayal-blue flex-shrink-0">
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M3 9h18M8 3v4M16 3v4" />
+          </svg>
+        </span>
       )}
 
       {onDelete && (
         <button
           type="button"
           onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-idayal-text-secondary hover:text-red-500 transition"
+          className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-idayal-text-muted hover:text-red-500 transition flex-shrink-0 mt-0.5"
           aria-label="Supprimer"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>

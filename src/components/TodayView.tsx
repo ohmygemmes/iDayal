@@ -9,13 +9,19 @@ interface Props {
   onOpenSettings: () => void;
 }
 
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function formatTodayLabel(): string {
   const d = new Date();
-  return d.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  return capitalize(
+    d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+  );
 }
 
 export function TodayView({ tasks, onToggle, onDelete, onOpenSettings }: Props) {
@@ -31,22 +37,39 @@ export function TodayView({ tasks, onToggle, onDelete, onOpenSettings }: Props) 
   return (
     <div className="flex flex-col h-full">
       <header
-        className="flex items-center justify-between px-4 pt-4 pb-3"
+        className="flex items-end justify-between px-5 pt-4 pb-3"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
       >
         <div>
-          <h1 className="text-2xl font-semibold text-idayal-text dark:text-zinc-100 capitalize">
+          <p className="text-[12px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 mb-0.5">
+            {formatTodayLabel()}
+          </p>
+          <h1 className="text-[28px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2 leading-none">
             Aujourd'hui
           </h1>
-          <p className="text-sm text-idayal-text-secondary dark:text-zinc-400 capitalize">
-            {formatTodayLabel()} · {remaining} restante{remaining !== 1 ? 's' : ''}
+          <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1.5">
+            {remaining === 0 ? (
+              <span>Aucune tâche en attente</span>
+            ) : (
+              <span>
+                <span className="tabular font-semibold text-idayal-text dark:text-zinc-200">
+                  {remaining}
+                </span>{' '}
+                à faire
+                {carried.length > 0 && (
+                  <span className="text-idayal-orange">
+                    {' '}· {carried.length} report{carried.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </span>
+            )}
           </p>
         </div>
         <button
           type="button"
           onClick={onOpenSettings}
           aria-label="Réglages"
-          className="w-10 h-10 rounded-full bg-white/70 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 flex items-center justify-center text-idayal-text-secondary dark:text-zinc-300 active:scale-95"
+          className="w-10 h-10 rounded-full bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark shadow-soft flex items-center justify-center text-idayal-text-secondary dark:text-zinc-300 active:scale-90 transition"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -55,12 +78,19 @@ export function TodayView({ tasks, onToggle, onDelete, onOpenSettings }: Props) 
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-44">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-48">
         {tasks.length === 0 && (
-          <div className="text-center text-idayal-text-secondary dark:text-zinc-400 mt-16 px-6">
-            <div className="text-4xl mb-3">🌤</div>
-            <p className="text-base">Rien pour aujourd'hui.</p>
-            <p className="text-sm mt-1">Tape une tâche en bas — par exemple « courses demain ».</p>
+          <div className="flex flex-col items-center text-center mt-20 px-6">
+            <div className="w-16 h-16 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 flex items-center justify-center text-3xl mb-4">
+              ☀️
+            </div>
+            <p className="text-[17px] font-semibold text-idayal-text dark:text-zinc-100">
+              Journée libre
+            </p>
+            <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1 max-w-[260px]">
+              Tape une tâche en bas — par ex.{' '}
+              <span className="text-idayal-blue font-medium">« courses demain à 10h »</span>.
+            </p>
           </div>
         )}
 
@@ -75,9 +105,15 @@ export function TodayView({ tasks, onToggle, onDelete, onOpenSettings }: Props) 
 
         {done.length > 0 && (
           <>
-            <h2 className="mt-6 mb-2 px-1 text-xs uppercase tracking-wide text-idayal-text-secondary dark:text-zinc-500">
-              Fait — {done.length}
-            </h2>
+            <div className="mt-7 mb-2 px-1 flex items-center gap-2">
+              <h2 className="text-[11px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500">
+                Fait
+              </h2>
+              <span className="text-[11px] font-semibold text-idayal-green tabular">
+                {done.length}
+              </span>
+              <span className="flex-1 h-px bg-idayal-border dark:bg-idayal-border-dark" />
+            </div>
             <ul>
               {done.map((t) => (
                 <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} />

@@ -5,6 +5,18 @@
 :root {
   color-scheme: light dark;
   -webkit-tap-highlight-color: transparent;
+  --idayal-bg-gradient: radial-gradient(
+      120% 80% at 50% -20%,
+      rgba(59, 125, 216, 0.10),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #f4f5f7 0%, #eef0f4 100%);
+  --idayal-bg-gradient-dark: radial-gradient(
+      120% 80% at 50% -20%,
+      rgba(59, 125, 216, 0.22),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #0f1020 0%, #15172a 100%);
 }
 
 html,
@@ -16,18 +28,20 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, system-ui,
-    sans-serif;
-  background: #f8f9fa;
-  color: #2d3436;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', 'Segoe UI',
+    Roboto, system-ui, sans-serif;
+  background: #f4f5f7;
+  color: #1a1e22;
   overscroll-behavior-y: contain;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
 }
 
 html.dark body {
-  background: #1a1a2e;
-  color: #f4f4f5;
+  background: #0f1020;
+  color: #ececf2;
 }
 
 /* Conteneur "iPhone" : occupe toute la hauteur, centré sur desktop. */
@@ -37,22 +51,35 @@ html.dark body {
   max-width: 430px;
   height: 100dvh;
   margin: 0 auto;
-  background: #f8f9fa;
   overflow: hidden;
+  background: var(--idayal-bg-gradient);
 }
 
 html.dark .app-shell {
-  background: #1a1a2e;
+  background: var(--idayal-bg-gradient-dark);
 }
 
 @media (min-width: 640px) {
   .app-shell {
-    border-radius: 28px;
+    border-radius: 32px;
     margin-top: 16px;
     margin-bottom: 16px;
     height: calc(100dvh - 32px);
-    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 30px 60px -20px rgba(15, 16, 32, 0.25),
+      0 8px 24px -8px rgba(15, 16, 32, 0.15);
+    border: 1px solid rgba(15, 16, 32, 0.06);
   }
+  html.dark .app-shell {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* Hide scrollbar but allow scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
 
 /* iOS safe-area helpers */
@@ -65,10 +92,23 @@ html.dark .app-shell {
 
 input,
 textarea,
-button {
+button,
+select {
   font-family: inherit;
 }
 
-input[type='time'] {
+input[type='time'],
+input[type='datetime-local'] {
   color-scheme: light dark;
+}
+
+/* Subtle text selection color */
+::selection {
+  background: rgba(59, 125, 216, 0.20);
+  color: inherit;
+}
+
+/* Optical refinements */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

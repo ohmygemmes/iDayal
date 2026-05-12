@@ -89,26 +89,32 @@ export function SettingsModal({
       aria-hidden={!open}
     >
       <div
-        className={`absolute inset-0 bg-black/40 transition-opacity ${
+        className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
           open ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}
       />
       <div
-        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-phone bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-3xl shadow-2xl transition-transform duration-300 ${
+        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-phone bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-[28px] shadow-2xl transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '90vh', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h2 className="text-lg font-semibold text-idayal-text dark:text-zinc-100">Réglages</h2>
+        {/* Handle visuel en haut */}
+        <div className="flex justify-center pt-2.5 pb-1">
+          <div className="w-9 h-1 rounded-full bg-idayal-border dark:bg-idayal-border-dark" />
+        </div>
+        <div className="flex items-center justify-between px-5 pt-1 pb-3">
+          <h2 className="text-[20px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2">
+            Réglages
+          </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="text-idayal-text-secondary dark:text-zinc-400 px-2 py-1 active:scale-95"
+            className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 text-idayal-text-secondary dark:text-zinc-300 flex items-center justify-center active:scale-90 transition"
           >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
@@ -117,7 +123,7 @@ export function SettingsModal({
         <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: 'calc(90vh - 60px)' }}>
           {/* Notifications */}
           <section className="mb-5">
-            <div className="flex items-center justify-between bg-white dark:bg-zinc-900 rounded-row px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm">
               <div>
                 <p className="text-idayal-text dark:text-zinc-100 font-medium">Notifications</p>
                 <p className="text-xs text-idayal-text-secondary dark:text-zinc-400 mt-0.5">
@@ -152,7 +158,7 @@ export function SettingsModal({
 
           {/* Heure du résumé */}
           <section className="mb-5">
-            <div className="flex items-center justify-between bg-white dark:bg-zinc-900 rounded-row px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm">
               <p className="text-idayal-text dark:text-zinc-100 font-medium">Résumé du matin</p>
               <input
                 type="time"
@@ -194,21 +200,21 @@ export function SettingsModal({
             <button
               type="button"
               onClick={handleClean}
-              className="w-full text-left bg-white dark:bg-zinc-900 rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 mb-2 active:scale-[0.99]"
+              className="w-full text-left bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 mb-2 active:scale-[0.99]"
             >
               Supprimer les tâches complétées (+ 30 jours)
             </button>
             <button
               type="button"
               onClick={handleExport}
-              className="w-full text-left bg-white dark:bg-zinc-900 rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 mb-2 active:scale-[0.99]"
+              className="w-full text-left bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 mb-2 active:scale-[0.99]"
             >
               Exporter mes tâches (JSON)
             </button>
             <button
               type="button"
               onClick={handleImportClick}
-              className="w-full text-left bg-white dark:bg-zinc-900 rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 active:scale-[0.99]"
+              className="w-full text-left bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm text-idayal-text dark:text-zinc-100 active:scale-[0.99]"
             >
               Importer des tâches (JSON)
             </button>
