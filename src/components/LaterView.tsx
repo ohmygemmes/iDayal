@@ -6,6 +6,7 @@ interface Props {
   tasks: Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onBringToToday: (id: string) => void;
 }
 
 function startOfWeek(d: Date): Date {
@@ -77,7 +78,7 @@ function groupTasks(tasks: Task[]): Group[] {
   return out;
 }
 
-export function LaterView({ tasks, onToggle, onDelete }: Props) {
+export function LaterView({ tasks, onToggle, onDelete, onBringToToday }: Props) {
   const groups = useMemo(() => groupTasks(tasks), [tasks]);
 
   return (
@@ -126,7 +127,7 @@ export function LaterView({ tasks, onToggle, onDelete }: Props) {
             </div>
             <ul>
               {g.items.map((t) => (
-                <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} showDate />
+                <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onBringToToday={onBringToToday} showDate />
               ))}
             </ul>
           </section>

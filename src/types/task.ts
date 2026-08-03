@@ -19,4 +19,6 @@ export interface Settings {
   notificationsEnabled: boolean;
   morningSummaryTime: string; // "HH:mm"
   themeMode: 'system' | 'light' | 'dark';
+  /** Tâche à afficher en premier dans l'onglet Cartes. */
+  pinnedTaskId: string | null;
 }

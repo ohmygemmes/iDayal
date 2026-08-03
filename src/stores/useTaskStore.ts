@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: false,
   morningSummaryTime: '08:00',
   themeMode: 'system',
+  pinnedTaskId: null,
 };
 
 function pad2(n: number): string {
@@ -107,6 +108,8 @@ export interface TaskStore {
   toggleComplete: (id: string) => void;
   deleteTask: (id: string) => void;
   postponeToTomorrow: (id: string) => void;
+  bringToToday: (id: string) => void;
+  pinTask: (id: string | null) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   cleanOldCompleted: (days?: number) => number;
   exportJSON: () => string;
@@ -185,6 +188,17 @@ export function useTaskStore(): TaskStore {
     );
   }, []);
 
+  const bringToToday = useCallback((id: string) => {
+    const today = todayISO();
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, scheduledDate: today, isCarriedOver: false } : t))
+    );
+  }, []);
+
+  const pinTask = useCallback((id: string | null) => {
+    setSettings((prev) => ({ ...prev, pinnedTaskId: prev.pinnedTaskId === id ? null : id }));
+  }, []);
+
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -254,6 +268,8 @@ export function useTaskStore(): TaskStore {
     toggleComplete,
     deleteTask,
     postponeToTomorrow,
+    bringToToday,
+    pinTask,
     updateSettings,
     cleanOldCompleted,
     exportJSON,

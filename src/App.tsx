@@ -59,6 +59,18 @@ export default function App() {
     store.addTask(title, scheduledDate);
   };
 
+  /** Depuis le paquet, ramène la tâche à aujourd'hui si besoin et l'épingle en top. */
+  const handlePromoteToTop = (id: string) => {
+    const task = store.tasks.find((t) => t.id === id);
+    if (!task) return;
+    const isLater =
+      !!task.scheduledDate && task.scheduledDate.slice(0, 10) > new Date().toISOString().slice(0, 10);
+    if (isLater) store.bringToToday(id);
+    // Épingle direct (pinTask toggle si même id, donc on force en updateSettings ici)
+    store.updateSettings({ pinnedTaskId: id });
+    setTab('cards');
+  };
+
   return (
     <div className="app-shell flex flex-col">
       <BrandHeader onOpenSettings={() => setSettingsOpen(true)} />
@@ -72,6 +84,8 @@ export default function App() {
             tasks={store.todayTasks}
             onToggle={store.toggleComplete}
             onDelete={store.deleteTask}
+            onPin={store.pinTask}
+            pinnedTaskId={store.settings.pinnedTaskId}
           />
         )}
         {tab === 'later' && (
@@ -79,13 +93,17 @@ export default function App() {
             tasks={store.laterTasks}
             onToggle={store.toggleComplete}
             onDelete={store.deleteTask}
+            onBringToToday={store.bringToToday}
           />
         )}
         {tab === 'cards' && (
           <CardsView
-            tasks={store.todayTasks}
+            todayTasks={store.todayTasks}
+            laterTasks={store.laterTasks}
+            pinnedTaskId={store.settings.pinnedTaskId}
             onComplete={store.toggleComplete}
             onPostpone={store.postponeToTomorrow}
+            onPromoteToTop={handlePromoteToTop}
           />
         )}
       </main>

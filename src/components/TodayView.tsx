@@ -6,6 +6,8 @@ interface Props {
   tasks: Task[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onPin: (id: string) => void;
+  pinnedTaskId: string | null;
 }
 
 function capitalize(s: string): string {
@@ -23,7 +25,7 @@ function formatTodayLabel(): string {
   );
 }
 
-export function TodayView({ tasks, onToggle, onDelete }: Props) {
+export function TodayView({ tasks, onToggle, onDelete, onPin, pinnedTaskId }: Props) {
   const { carried, fresh, done } = useMemo(() => {
     const carried = tasks.filter((t) => !t.completedDate && t.isCarriedOver);
     const fresh = tasks.filter((t) => !t.completedDate && !t.isCarriedOver);
@@ -79,10 +81,10 @@ export function TodayView({ tasks, onToggle, onDelete }: Props) {
 
         <ul>
           {carried.map((t) => (
-            <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} />
+            <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onPin={onPin} isPinned={pinnedTaskId === t.id} />
           ))}
           {fresh.map((t) => (
-            <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} />
+            <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onPin={onPin} isPinned={pinnedTaskId === t.id} />
           ))}
         </ul>
 
@@ -99,7 +101,7 @@ export function TodayView({ tasks, onToggle, onDelete }: Props) {
             </div>
             <ul>
               {done.map((t) => (
-                <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} />
+                <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onPin={onPin} isPinned={pinnedTaskId === t.id} />
               ))}
             </ul>
           </>
