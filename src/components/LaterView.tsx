@@ -82,10 +82,7 @@ export function LaterView({ tasks, onToggle, onDelete }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <header
-        className="px-5 pt-4 pb-3"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }}
-      >
+      <header className="px-5 pt-2 pb-3">
         <p className="text-[12px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 mb-0.5">
           À venir
         </p>

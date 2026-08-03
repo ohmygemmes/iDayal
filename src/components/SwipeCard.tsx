@@ -101,23 +101,52 @@ export function SwipeCard({ task, depth, onDone, onPostpone }: Props) {
               })}
             </p>
           )}
+          <p className="mt-6 text-[11px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 text-center">
+            Swipe la carte ou choisis ci-dessous
+          </p>
         </div>
 
-        {/* Hints en bas — visibles uniquement sur la carte du dessus, au repos */}
-        {isTop && doneOpacity === 0 && postponeOpacity === 0 && (
-          <div className="absolute bottom-5 left-0 right-0 flex items-center justify-between px-6 text-[11px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 pointer-events-none">
-            <span className="flex items-center gap-1 text-idayal-orange/70">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        {/* Actions cliquables — utilisables sur desktop et en fallback tactile */}
+        {isTop && (
+          <div className="relative flex gap-3 pt-2">
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  navigator.vibrate?.(10);
+                } catch {
+                  /* ignore */
+                }
+                onPostpone();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange font-semibold text-[15px] active:scale-95 hover:bg-idayal-orange/20 dark:hover:bg-idayal-orange/25 transition"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
               Plus tard
-            </span>
-            <span className="flex items-center gap-1 text-idayal-green/70">
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                try {
+                  navigator.vibrate?.(15);
+                } catch {
+                  /* ignore */
+                }
+                onDone();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-idayal-green text-white font-semibold text-[15px] shadow-[0_6px_16px_rgba(61,186,142,0.35)] active:scale-95 hover:bg-idayal-green-dark transition"
+            >
               Fait
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 6l6 6-6 6" />
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12.5l4.5 4.5L20 7" />
               </svg>
-            </span>
+            </button>
           </div>
         )}
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BrandHeader } from './components/BrandHeader';
 import { CardsView } from './components/CardsView';
 import { LaterView } from './components/LaterView';
 import { QuickAddBar } from './components/QuickAddBar';
@@ -59,9 +60,10 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell flex flex-col">
+      <BrandHeader onOpenSettings={() => setSettingsOpen(true)} />
       <main
-        className={`h-full transition-opacity duration-150 ${
+        className={`flex-1 min-h-0 transition-opacity duration-150 ${
           transitioning ? 'opacity-0' : 'opacity-100'
         }`}
       >
@@ -70,7 +72,6 @@ export default function App() {
             tasks={store.todayTasks}
             onToggle={store.toggleComplete}
             onDelete={store.deleteTask}
-            onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
         {tab === 'later' && (
