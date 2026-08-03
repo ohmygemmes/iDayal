@@ -38,6 +38,8 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [dismissedUntil, setDismissedUntil] = useState<Record<string, number>>({});
   const [now, setNow] = useState(() => Date.now());
+  /** Tâche interrompue par un « Faire maintenant », à reprendre une fois l'urgence traitée. */
+  const [resumeTaskId, setResumeTaskId] = useState<string | null>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
 
   // Application du thème + écoute des changements système.
@@ -109,6 +111,25 @@ export default function App() {
   );
   const currentTop = stack[0] ?? null;
 
+  /**
+   * Quand la tâche en cours sort de la pile (terminée, reportée, supprimée),
+   * on revient sur celle qu'elle avait interrompue au lieu de retomber
+   * sur une tâche au hasard.
+   */
+  const { updateSettings, todayTasks } = store;
+  const pinnedTaskId = store.settings.pinnedTaskId;
+  useEffect(() => {
+    if (!pinnedTaskId) return;
+    const stillActive = todayTasks.some((t) => t.id === pinnedTaskId && !t.completedDate);
+    if (stillActive) return;
+    const resume = resumeTaskId
+      ? todayTasks.find((t) => t.id === resumeTaskId && !t.completedDate)
+      : null;
+    updateSettings({ pinnedTaskId: resume ? resume.id : null });
+    setResumeTaskId(null);
+    if (resume) setToast(`Retour à : ${resume.title}`);
+  }, [todayTasks, pinnedTaskId, resumeTaskId, updateSettings]);
+
   // Tâche dont l'heure est arrivée et qui n'est pas déjà celle en cours.
   const dueTask = useMemo(() => {
     const due = store.tasks.filter((t) => {
@@ -165,6 +186,8 @@ export default function App() {
     if (!task) return;
     const isLater = !!task.scheduledDate && task.scheduledDate.slice(0, 10) > toLocalISODate(new Date());
     if (isLater) store.bringToToday(id);
+    // Choix délibéré depuis le paquet : ce n'est pas une interruption, on oublie la reprise.
+    setResumeTaskId(null);
     store.updateSettings({ pinnedTaskId: id });
     setTab('cards');
   };
@@ -172,6 +195,8 @@ export default function App() {
   const handleDueDoNow = () => {
     if (!dueTask) return;
     setDismissedUntil((p) => ({ ...p, [dueTask.id]: FOREVER }));
+    // On mémorise ce qu'on était en train de faire pour y revenir après.
+    setResumeTaskId(currentTop && currentTop.id !== dueTask.id ? currentTop.id : null);
     store.updateSettings({ pinnedTaskId: dueTask.id });
     setTab('cards');
   };

@@ -11,14 +11,30 @@ interface Props {
   showDate?: boolean;
 }
 
-function formatScheduled(iso: string | null): string | null {
+interface ScheduleInfo {
+  label: string;
+  hasTime: boolean;
+  overdue: boolean;
+}
+
+/**
+ * Dans « Plus tard » on affiche la date complète.
+ * Dans « Aujourd'hui » la date est évidente : on n'affiche que l'heure, si elle existe.
+ */
+function scheduleInfo(iso: string | null, showFullDate: boolean): ScheduleInfo | null {
   if (!iso) return null;
   const hasTime = iso.length > 10;
+  if (!showFullDate && !hasTime) return null;
   const d = hasTime ? new Date(iso) : new Date(iso + 'T00:00:00');
-  const opts: Intl.DateTimeFormatOptions = hasTime
-    ? { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
-    : { weekday: 'short', day: 'numeric', month: 'short' };
-  return d.toLocaleString('fr-FR', opts);
+  const label = showFullDate
+    ? d.toLocaleString(
+        'fr-FR',
+        hasTime
+          ? { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+          : { weekday: 'short', day: 'numeric', month: 'short' }
+      )
+    : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return { label, hasTime, overdue: hasTime && d.getTime() < Date.now() };
 }
 
 export function TaskRow({
@@ -52,7 +68,7 @@ export function TaskRow({
     }
   };
 
-  const dateLabel = formatScheduled(task.scheduledDate);
+  const schedule = scheduleInfo(task.scheduledDate, showDate);
   const carried = task.isCarriedOver && !completed;
 
   return (
@@ -127,9 +143,19 @@ export function TaskRow({
             {task.title}
           </p>
         </div>
-        {showDate && dateLabel && !completed && (
-          <p className="text-[12px] text-idayal-blue mt-0.5 tabular font-medium">
-            {dateLabel}
+        {schedule && !completed && (
+          <p
+            className={`text-[12px] mt-0.5 tabular font-medium flex items-center gap-1 ${
+              schedule.overdue ? 'text-idayal-orange' : 'text-idayal-blue'
+            }`}
+          >
+            {schedule.hasTime && (
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+            )}
+            {schedule.label}
           </p>
         )}
       </div>
