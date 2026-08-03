@@ -98,7 +98,7 @@ export function LaterView({ tasks, onToggle, onDelete, onBringToToday }: Props) 
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-32">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-48">
         {groups.length === 0 && (
           <div className="flex flex-col items-center text-center mt-20 px-6">
             <div className="w-16 h-16 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 flex items-center justify-center text-3xl mb-4">

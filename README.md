@@ -64,6 +64,51 @@ npm run preview
 > Les notifications web sur iOS Safari ne fonctionnent **que** quand l'app est
 > installée en PWA. Active-les ensuite via le bouton ⚙️ dans l'app.
 
+## Noter une tâche sans ouvrir l'app (iPhone)
+
+iDayal accepte un paramètre `?add=` dans l'URL : la tâche est créée dès
+l'ouverture, puis le paramètre est retiré de l'URL.
+
+```
+https://<url-de-liDayal>/?add=rappeler%20le%20dentiste%20demain%20à%2010h
+```
+
+Ça permet de brancher un **raccourci iOS** et de noter une tâche à la voix
+ou en un appui, sans naviguer dans l'app.
+
+### Créer le raccourci (une fois, ~2 min)
+
+1. Ouvre l'app **Raccourcis** → **+** (nouveau raccourci)
+2. Ajoute l'action **« Demander une entrée »**
+   - Type : *Texte*
+   - Question : `Quoi ?`
+3. Ajoute l'action **« Coder l'URL »** et passe-lui la *Réponse fournie*
+4. Ajoute l'action **« Texte »** avec :
+   `https://<url-de-liDayal>/?add=` suivi du résultat de *Coder l'URL*
+5. Ajoute l'action **« Ouvrir les URL »** avec ce texte
+6. Nomme le raccourci **« Noter »** et enregistre
+
+Ensuite tu peux le déclencher par :
+
+- **Siri** — « Dis Siri, Noter » → tu dictes → c'est enregistré
+- **Bouton Action** (iPhone 15 Pro et +) — Réglages → Bouton Action → Raccourci
+- **Toucher au dos** — Réglages → Accessibilité → Toucher → Toucher au dos
+- **Écran verrouillé / widget** — ajoute le raccourci en widget
+
+> Le menu **Partager** d'iOS n'est pas utilisable : Apple ne supporte pas le
+> Web Share Target pour les PWA. Le raccourci ci-dessus le remplace.
+
+## Raccourcis clavier (ordinateur)
+
+| Touche | Action |
+| --- | --- |
+| `/` ou `n` | Aller dans le champ de saisie |
+| `Échap` | Sortir du champ |
+| `1` `2` `3` | Aujourd'hui / Cartes / Plus tard |
+| `←` `→` | Sur une carte : reporter / terminer |
+
+Coller plusieurs lignes dans le champ de saisie crée une tâche par ligne.
+
 ## Détection de dates en français
 
 Le parser comprend des expressions comme :

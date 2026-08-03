@@ -4,6 +4,8 @@ import { toLocalISODate, toLocalISODateTime } from '../stores/useTaskStore';
 
 interface Props {
   onAdd: (title: string, scheduledDate: string | null) => void;
+  /** Ref pilotée par App pour le raccourci clavier de focus (ordinateur). */
+  inputRef?: React.RefObject<HTMLInputElement>;
 }
 
 function formatDateChip(iso: string): string {
@@ -17,12 +19,13 @@ function formatDateChip(iso: string): string {
   });
 }
 
-export function QuickAddBar({ onAdd }: Props) {
+export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [value, setValue] = useState('');
   const [manualDate, setManualDate] = useState(''); // datetime-local string
   const [showPicker, setShowPicker] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const localRef = useRef<HTMLInputElement>(null);
+  const inputRef = externalRef ?? localRef;
 
   // Suit le clavier iOS via visualViewport.
   useEffect(() => {
@@ -54,37 +57,46 @@ export function QuickAddBar({ onAdd }: Props) {
   // Date effective : manuelle prioritaire, sinon détectée.
   const effectiveScheduled = manualDate || detectedPreview;
 
-  const submit = () => {
-    const text = value.trim();
+  const addOne = (raw: string, forcedDate: string | null) => {
+    const text = raw.trim();
     if (!text) return;
-    let scheduled: string | null = null;
-    let title = text;
-    if (manualDate) {
-      // Le parser nettoie quand même le titre s'il y a une date dedans.
-      const { cleanTitle } = parseFrenchDate(text);
-      title = cleanTitle || text;
-      scheduled = manualDate; // déjà au format YYYY-MM-DDTHH:mm local
-    } else {
-      const { cleanTitle, detectedDate } = parseFrenchDate(text);
-      title = cleanTitle || text;
-      if (detectedDate) {
-        const hasTime =
-          detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
-        scheduled = hasTime
-          ? toLocalISODateTime(detectedDate)
-          : toLocalISODate(detectedDate);
-      }
+    const { cleanTitle, detectedDate } = parseFrenchDate(text);
+    const title = cleanTitle || text;
+    let scheduled: string | null = forcedDate;
+    if (!scheduled && detectedDate) {
+      const hasTime = detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
+      scheduled = hasTime ? toLocalISODateTime(detectedDate) : toLocalISODate(detectedDate);
     }
     onAdd(title, scheduled);
+  };
+
+  const submit = () => {
+    if (!value.trim()) return;
+    addOne(value, manualDate || null);
     setValue('');
     setManualDate('');
     setShowPicker(false);
     inputRef.current?.focus();
   };
 
+  /** Coller plusieurs lignes crée plusieurs tâches d'un coup. */
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text');
+    const lines = pasted
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length < 2) return; // comportement normal
+    e.preventDefault();
+    lines.forEach((l) => addOne(l, null));
+    setValue('');
+    setManualDate('');
+    inputRef.current?.focus();
+  };
+
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 w-full max-w-phone z-20 px-3"
+      className="fixed left-1/2 -translate-x-1/2 w-full max-w-app z-20 px-3"
       style={{
         bottom: keyboardOffset
           ? `calc(${keyboardOffset}px + 8px)`
@@ -151,12 +163,13 @@ export function QuickAddBar({ onAdd }: Props) {
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onPaste={handlePaste}
           onFocus={() => {
             window.setTimeout(() => {
               inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }, 200);
           }}
-          placeholder="Ex : courses demain à 10h"
+          placeholder="Noter une tâche…"
           className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-idayal-text-muted text-idayal-text dark:text-zinc-100 tracking-tightish"
           enterKeyHint="send"
           autoComplete="off"

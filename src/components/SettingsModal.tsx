@@ -95,7 +95,7 @@ export function SettingsModal({
         onClick={onClose}
       />
       <div
-        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-phone bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-[28px] shadow-2xl transition-transform duration-300 ease-out ${
+        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-app bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-[28px] shadow-2xl transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '90vh', paddingBottom: 'env(safe-area-inset-bottom)' }}

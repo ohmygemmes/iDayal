@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { buildStack } from '../services/stack';
 import type { Task } from '../types/task';
 import { CompletionScreen } from './CompletionScreen';
 import { SwipeCard } from './SwipeCard';
@@ -29,14 +30,7 @@ export function CardsView({
   onPostpone,
   onPromoteToTop,
 }: Props) {
-  // Pile = tâches du jour non complétées, avec l'épinglée en premier si présente.
-  const stack = useMemo(() => {
-    const pending = todayTasks.filter((t) => !t.completedDate);
-    if (!pinnedTaskId) return pending;
-    const idx = pending.findIndex((t) => t.id === pinnedTaskId);
-    if (idx <= 0) return pending;
-    return [pending[idx], ...pending.slice(0, idx), ...pending.slice(idx + 1)];
-  }, [todayTasks, pinnedTaskId]);
+  const stack = useMemo(() => buildStack(todayTasks, pinnedTaskId), [todayTasks, pinnedTaskId]);
 
   const [doneCount, setDoneCount] = useState(0);
   const [deckOpen, setDeckOpen] = useState(false);
@@ -57,6 +51,26 @@ export function CardsView({
   const handlePostpone = (id: string) => {
     onPostpone(id);
   };
+
+  // Flèches gauche/droite = équivalent clavier du swipe (ordinateur).
+  const top = stack[0];
+  useEffect(() => {
+    if (!top || deckOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleDone(top.id);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePostpone(top.id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [top?.id, deckOpen]);
 
   const handlePromote = (id: string) => {
     onPromoteToTop(id);
@@ -81,10 +95,14 @@ export function CardsView({
         <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1.5">
           Swipe <span className="text-idayal-green font-medium">→</span> pour finir,{' '}
           <span className="text-idayal-orange font-medium">←</span> pour reporter
+          <span className="kbd-hint items-center gap-1 ml-2 text-idayal-text-muted">
+            <kbd>←</kbd>
+            <kbd>→</kbd>
+          </span>
         </p>
       </header>
 
-      <div className="flex-1 min-h-0 px-5 pb-40 flex flex-col">
+      <div className="flex-1 min-h-0 px-5 pb-48 flex flex-col">
         {stack.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <CompletionScreen total={doneCount} />
@@ -185,7 +203,7 @@ function DeckPanel({
         onClick={onClose}
       />
       <div
-        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-phone bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-[28px] shadow-2xl transition-transform duration-300 ease-out ${
+        className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-app bg-idayal-bg dark:bg-idayal-bg-dark rounded-t-[28px] shadow-2xl transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '85vh', paddingBottom: 'env(safe-area-inset-bottom)' }}

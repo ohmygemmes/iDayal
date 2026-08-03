@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrandHeader } from './components/BrandHeader';
 import { CardsView } from './components/CardsView';
+import { DueTaskBanner } from './components/DueTaskBanner';
 import { LaterView } from './components/LaterView';
 import { QuickAddBar } from './components/QuickAddBar';
 import { SettingsModal } from './components/SettingsModal';
 import { TabBar } from './components/TabBar';
 import { TodayView } from './components/TodayView';
+import { parseFrenchDate } from './services/frenchDateParser';
 import { scheduleNotifications } from './services/notificationService';
-import { useTaskStore } from './stores/useTaskStore';
+import { buildStack } from './services/stack';
+import { toLocalISODate, toLocalISODateTime, useTaskStore } from './stores/useTaskStore';
 import type { TabKey } from './types/task';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
+const SNOOZE_MS = 10 * 60 * 1000;
+const FOREVER = Number.MAX_SAFE_INTEGER;
 
 function applyTheme(mode: 'system' | 'light' | 'dark') {
   const root = document.documentElement;
@@ -19,11 +24,21 @@ function applyTheme(mode: 'system' | 'light' | 'dark') {
   root.classList.toggle('dark', dark);
 }
 
+/** Convertit une date détectée en chaîne stockable (avec ou sans heure). */
+function toStored(d: Date): string {
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+  return hasTime ? toLocalISODateTime(d) : toLocalISODate(d);
+}
+
 export default function App() {
   const store = useTaskStore();
   const [tab, setTab] = useState<TabKey>('today');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [dismissedUntil, setDismissedUntil] = useState<Record<string, number>>({});
+  const [now, setNow] = useState(() => Date.now());
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   // Application du thème + écoute des changements système.
   useEffect(() => {
@@ -45,6 +60,91 @@ export default function App() {
     });
   }, [store.tasks, store.settings.notificationsEnabled, store.settings.morningSummaryTime]);
 
+  // Horloge basse fréquence pour déclencher le bandeau d'échéance.
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') setNow(Date.now());
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
+  // Capture externe : ?add=... (raccourci Siri, bouton Action, favori…)
+  const { addTask } = store;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('add');
+    if (!raw) return;
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    lines.forEach((line) => {
+      const { cleanTitle, detectedDate } = parseFrenchDate(line);
+      addTask(cleanTitle || line, detectedDate ? toStored(detectedDate) : null);
+    });
+    // On nettoie l'URL pour ne pas re-créer la tâche au rechargement.
+    const url = new URL(window.location.href);
+    url.searchParams.delete('add');
+    window.history.replaceState({}, '', url.toString());
+    if (lines.length) {
+      setToast(lines.length > 1 ? `${lines.length} tâches ajoutées` : 'Tâche ajoutée');
+    }
+  }, [addTask]);
+
+  // Toast auto-dismiss.
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 2200);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  const stack = useMemo(
+    () => buildStack(store.todayTasks, store.settings.pinnedTaskId),
+    [store.todayTasks, store.settings.pinnedTaskId]
+  );
+  const currentTop = stack[0] ?? null;
+
+  // Tâche dont l'heure est arrivée et qui n'est pas déjà celle en cours.
+  const dueTask = useMemo(() => {
+    const due = store.tasks.filter((t) => {
+      if (t.completedDate) return false;
+      if (!t.scheduledDate || t.scheduledDate.length <= 10) return false;
+      if (new Date(t.scheduledDate).getTime() > now) return false;
+      if (currentTop && t.id === currentTop.id) return false;
+      const until = dismissedUntil[t.id];
+      if (until && until > now) return false;
+      return true;
+    });
+    due.sort((a, b) => (a.scheduledDate ?? '').localeCompare(b.scheduledDate ?? ''));
+    return due[0] ?? null;
+  }, [store.tasks, now, dismissedUntil, currentTop]);
+
+  // Raccourcis clavier (ordinateur).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const typing =
+        !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing) {
+        if (e.key === 'Escape') (el as HTMLInputElement).blur();
+        return;
+      }
+      if (e.key === '/' || e.key === 'n') {
+        e.preventDefault();
+        addInputRef.current?.focus();
+      } else if (e.key === '1') setTab('today');
+      else if (e.key === '2') setTab('cards');
+      else if (e.key === '3') setTab('later');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Transition fade entre onglets.
   const handleTab = (next: TabKey) => {
     if (next === tab) return;
@@ -59,16 +159,37 @@ export default function App() {
     store.addTask(title, scheduledDate);
   };
 
-  /** Depuis le paquet, ramène la tâche à aujourd'hui si besoin et l'épingle en top. */
+  /** Depuis le paquet, ramène la tâche à aujourd'hui si besoin et la met en cours. */
   const handlePromoteToTop = (id: string) => {
     const task = store.tasks.find((t) => t.id === id);
     if (!task) return;
-    const isLater =
-      !!task.scheduledDate && task.scheduledDate.slice(0, 10) > new Date().toISOString().slice(0, 10);
+    const isLater = !!task.scheduledDate && task.scheduledDate.slice(0, 10) > toLocalISODate(new Date());
     if (isLater) store.bringToToday(id);
-    // Épingle direct (pinTask toggle si même id, donc on force en updateSettings ici)
     store.updateSettings({ pinnedTaskId: id });
     setTab('cards');
+  };
+
+  const handleDueDoNow = () => {
+    if (!dueTask) return;
+    setDismissedUntil((p) => ({ ...p, [dueTask.id]: FOREVER }));
+    store.updateSettings({ pinnedTaskId: dueTask.id });
+    setTab('cards');
+  };
+
+  const handleDueFinishFirst = () => {
+    if (!dueTask) return;
+    setDismissedUntil((p) => ({ ...p, [dueTask.id]: FOREVER }));
+    // La tâche se glisse juste derrière celle en cours. Si celle-ci est épinglée,
+    // elle est de toute façon remontée en tête par buildStack : il suffit alors de
+    // mettre la nouvelle en tête du tableau pour qu'elle devienne la carte n°2.
+    const topIsPinned = !!currentTop && store.settings.pinnedTaskId === currentTop.id;
+    store.placeAfterTask(dueTask.id, topIsPinned ? null : currentTop?.id ?? null);
+    setToast('Placée juste après');
+  };
+
+  const handleDueSnooze = () => {
+    if (!dueTask) return;
+    setDismissedUntil((p) => ({ ...p, [dueTask.id]: Date.now() + SNOOZE_MS }));
   };
 
   return (
@@ -108,7 +229,22 @@ export default function App() {
         )}
       </main>
 
-      {tab === 'today' && <QuickAddBar onAdd={handleAdd} />}
+      <DueTaskBanner
+        task={dueTask}
+        currentTitle={currentTop?.title ?? null}
+        onDoNow={handleDueDoNow}
+        onFinishFirst={handleDueFinishFirst}
+        onSnooze={handleDueSnooze}
+      />
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-32 z-40 px-4 py-2 rounded-full bg-idayal-text text-white text-[13px] font-medium shadow-elev animate-slide-in-up">
+          {toast}
+        </div>
+      )}
+
+      {/* La barre de saisie est disponible partout : noter ne doit jamais demander de naviguer. */}
+      <QuickAddBar onAdd={handleAdd} inputRef={addInputRef} />
 
       <TabBar active={tab} onChange={handleTab} />
 

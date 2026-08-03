@@ -110,6 +110,8 @@ export interface TaskStore {
   postponeToTomorrow: (id: string) => void;
   bringToToday: (id: string) => void;
   pinTask: (id: string | null) => void;
+  /** Déplace `id` juste après `afterId` dans l'ordre de la pile (null = tout devant). */
+  placeAfterTask: (id: string, afterId: string | null) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   cleanOldCompleted: (days?: number) => number;
   exportJSON: () => string;
@@ -199,6 +201,18 @@ export function useTaskStore(): TaskStore {
     setSettings((prev) => ({ ...prev, pinnedTaskId: prev.pinnedTaskId === id ? null : id }));
   }, []);
 
+  const placeAfterTask = useCallback((id: string, afterId: string | null) => {
+    setTasks((prev) => {
+      const moving = prev.find((t) => t.id === id);
+      if (!moving) return prev;
+      const rest = prev.filter((t) => t.id !== id);
+      if (!afterId) return [moving, ...rest];
+      const idx = rest.findIndex((t) => t.id === afterId);
+      if (idx === -1) return [moving, ...rest];
+      return [...rest.slice(0, idx + 1), moving, ...rest.slice(idx + 1)];
+    });
+  }, []);
+
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -270,6 +284,7 @@ export function useTaskStore(): TaskStore {
     postponeToTomorrow,
     bringToToday,
     pinTask,
+    placeAfterTask,
     updateSettings,
     cleanOldCompleted,
     exportJSON,

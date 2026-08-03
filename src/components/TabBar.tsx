@@ -69,7 +69,7 @@ export function TabBar({ active, onChange }: Props) {
   const cardsActive = active === 'cards';
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-phone z-30"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app z-30"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="relative mx-3 mb-2 flex items-end justify-around bg-white/85 dark:bg-idayal-bg-dark-elev/85 backdrop-blur-xl rounded-bar shadow-bar border border-idayal-border dark:border-idayal-border-dark px-2">

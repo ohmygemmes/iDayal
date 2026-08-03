@@ -5,6 +5,8 @@
 :root {
   color-scheme: light dark;
   -webkit-tap-highlight-color: transparent;
+  /* Largeur de la colonne unique — un peu plus confortable sur ordinateur. */
+  --app-w: 430px;
   --idayal-bg-gradient: radial-gradient(
       120% 80% at 50% -20%,
       rgba(59, 125, 216, 0.10),
@@ -44,11 +46,16 @@ html.dark body {
   color: #ececf2;
 }
 
-/* Conteneur "iPhone" : occupe toute la hauteur, centré sur desktop. */
+/* Largeur partagée par le shell, la tab bar, la barre de saisie et les modales. */
+.max-w-app {
+  max-width: var(--app-w);
+}
+
+/* Conteneur principal : colonne unique, centrée sur ordinateur. */
 .app-shell {
   position: relative;
   width: 100%;
-  max-width: 430px;
+  max-width: var(--app-w);
   height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
@@ -60,11 +67,14 @@ html.dark .app-shell {
 }
 
 @media (min-width: 640px) {
+  :root {
+    --app-w: 560px;
+  }
   .app-shell {
-    border-radius: 32px;
-    margin-top: 16px;
-    margin-bottom: 16px;
-    height: calc(100dvh - 32px);
+    border-radius: 28px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    height: calc(100dvh - 40px);
     box-shadow: 0 30px 60px -20px rgba(15, 16, 32, 0.25),
       0 8px 24px -8px rgba(15, 16, 32, 0.15);
     border: 1px solid rgba(15, 16, 32, 0.06);
@@ -72,6 +82,29 @@ html.dark .app-shell {
   html.dark .app-shell {
     border-color: rgba(255, 255, 255, 0.06);
   }
+}
+
+/* Indices clavier — visibles seulement sur pointeur fin (ordinateur). */
+.kbd-hint {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kbd-hint {
+    display: inline-flex;
+  }
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: rgba(15, 16, 32, 0.06);
+  color: inherit;
+}
+html.dark kbd {
+  background: rgba(255, 255, 255, 0.10);
 }
 
 /* Hide scrollbar but allow scrolling */
