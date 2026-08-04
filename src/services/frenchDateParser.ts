@@ -95,7 +95,9 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   // Suffixe optionnel pour une heure : "à 12", "à 12h", "12h", "12h30", "12:30", "12"
   // Capture les heures dans le groupe N et les minutes dans le groupe N+1.
   // Le "à" est optionnel ; "h" ou ":" sont optionnels (mais on a au moins un chiffre).
-  const TIME = '(?:\\s+(?:à\\s+)?(\\d{1,2})(?:[h:](\\d{2})?)?)?';
+  // Le « à » est optionnel et accepté sans accent : on tape rarement les
+  // accents au clavier du téléphone.
+  const TIME = '(?:\\s+(?:[aà]\\s+)?(\\d{1,2})(?:[h:](\\d{2})?)?)?';
 
   function buildTime(base: Date, hStr?: string, mStr?: string): Date | null {
     if (!hStr) return base;
@@ -105,31 +107,46 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
     return applyTime(base, hour, minute);
   }
 
+  /**
+   * Construit une date jour + mois. Sans année précisée, si la date est déjà
+   * passée on vise l'année suivante — « 6 janvier » en août veut dire l'an prochain.
+   */
+  function buildDayMonth(
+    day: number,
+    month: number,
+    hStr: string | undefined,
+    mStr: string | undefined,
+    n: Date
+  ): Date | null {
+    const year = n.getFullYear();
+    const base = new Date(year, month, day, 0, 0, 0, 0);
+    // Rejette les jours qui n'existent pas (31 février bascule sur mars).
+    if (base.getMonth() !== month || base.getDate() !== day) return null;
+    const dt = buildTime(base, hStr, mStr);
+    if (!dt) return null;
+    if (dt.getTime() < startOfDay(n).getTime()) dt.setFullYear(year + 1);
+    return dt;
+  }
+
   // On essaie les motifs du plus spécifique au moins spécifique.
   const builders: Array<{
     regex: RegExp;
     build: (m: RegExpExecArray, now: Date) => Date | null;
   }> = [
-    // "le 15 avril [à] [12[h[30]]]"
+    // "[le] 15 avril [à] [12[h[30]]]" — le « le » est facultatif : on écrit
+    // aussi bien « rdv 3 août » que « rdv le 3 août ».
     {
-      regex: new RegExp(`\\ble\\s+(\\d{1,2})\\s+${MONTH_PATTERN}${TIME}\\b`, 'i'),
+      regex: new RegExp(`\\b(?:le\\s+)?(\\d{1,2})\\s+${MONTH_PATTERN}${TIME}\\b`, 'i'),
       build: (m, n) => {
         const day = parseInt(m[1], 10);
         const month = MONTHS[m[2].toLowerCase()];
         if (month === undefined) return null;
-        let year = n.getFullYear();
-        const base = new Date(year, month, day, 0, 0, 0, 0);
-        const dt = buildTime(base, m[3], m[4]);
-        if (!dt) return null;
-        if (dt.getTime() < startOfDay(n).getTime()) {
-          dt.setFullYear(year + 1);
-        }
-        return dt;
+        return buildDayMonth(day, month, m[3], m[4], n);
       },
     },
-    // "après-demain [à] [12[h[30]]]"
+    // "après-demain [à] [12[h[30]]]" — accent et tiret facultatifs
     {
-      regex: new RegExp(`\\baprès[-\\s]demain${TIME}\\b`, 'i'),
+      regex: new RegExp(`\\bapr[eè]s[-\\s]?demain${TIME}\\b`, 'i'),
       build: (m, n) => {
         const d = startOfDay(n);
         d.setDate(d.getDate() + 2);
@@ -185,12 +202,20 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
         return d;
       },
     },
-    // "à 14h30" / "à 14" (hour seul avec à) — pas de \b avant "à" car ce n'est pas un word char.
+    // "à 14h30" / "a 14h" — le « h » (ou « : ») est exigé ici, sinon « a 3 »
+    // dans « acheter a 3 euros » serait pris pour une heure.
+    // Pas de \b avant « à » : ce n'est pas un caractère de mot.
     {
-      regex: /(?:^|\s)à\s+(\d{1,2})(?:[h:](\d{2})?)?\b/i,
+      regex: /(?:^|\s)[aà]\s+(\d{1,2})[h:](\d{2})?/i,
       build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
     },
-    // "14h30" / "14h" / "14:30" (sans à, mais 'h' ou ':' obligatoire pour lever l'ambiguïté)
+    // "à 14" — heure nue tolérée uniquement avec le « à » accentué, qui est
+    // une intention plus explicite.
+    {
+      regex: /(?:^|\s)à\s+(\d{1,2})\b/i,
+      build: (m, n) => buildTime(startOfDay(n), m[1], undefined),
+    },
+    // "14h30" / "14h" / "14:30" — sans « à », le séparateur horaire est requis.
     {
       regex: /\b(\d{1,2})[h:](\d{2})?\b/i,
       build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
