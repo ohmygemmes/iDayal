@@ -32,7 +32,14 @@ export function CardsView({
 }: Props) {
   const stack = useMemo(() => buildStack(todayTasks, pinnedTaskId), [todayTasks, pinnedTaskId]);
 
-  const [doneCount, setDoneCount] = useState(0);
+  /**
+   * Dérivé des données plutôt que compté à la volée : le compteur survit à un
+   * changement d'onglet et reste juste si l'utilisateur annule une complétion.
+   */
+  const doneCount = useMemo(
+    () => todayTasks.filter((t) => !!t.completedDate).length,
+    [todayTasks]
+  );
   const [deckOpen, setDeckOpen] = useState(false);
 
   // Ferme le deck si plus de tâches
@@ -44,7 +51,6 @@ export function CardsView({
   const visible = stack.slice(0, 3);
 
   const handleDone = (id: string) => {
-    setDoneCount((c) => c + 1);
     onComplete(id);
   };
 

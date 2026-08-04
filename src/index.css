@@ -94,6 +94,19 @@ html.dark .app-shell {
   }
 }
 
+/*
+ * Commandes réservées à la souris. Au doigt il n'y a pas de survol : un bouton
+ * masqué par `opacity: 0` resterait cliquable, donc on le retire du rendu.
+ */
+.mouse-only {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mouse-only {
+    display: inline-flex;
+  }
+}
+
 kbd {
   font-family: inherit;
   font-size: 10px;

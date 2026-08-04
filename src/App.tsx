@@ -105,6 +105,15 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [toast]);
 
+  // La proposition d'annulation s'efface d'elle-même au bout de cinq secondes.
+  const { clearUndo } = store;
+  const undoId = store.undoState?.id;
+  useEffect(() => {
+    if (!undoId) return;
+    const id = window.setTimeout(clearUndo, 5000);
+    return () => window.clearTimeout(id);
+  }, [undoId, clearUndo]);
+
   const stack = useMemo(
     () => buildStack(store.todayTasks, store.settings.pinnedTaskId),
     [store.todayTasks, store.settings.pinnedTaskId]
@@ -230,6 +239,7 @@ export default function App() {
             tasks={store.todayTasks}
             onToggle={store.toggleComplete}
             onDelete={store.deleteTask}
+            onEditTitle={store.updateTaskTitle}
             onPin={store.pinTask}
             pinnedTaskId={store.settings.pinnedTaskId}
           />
@@ -239,6 +249,7 @@ export default function App() {
             tasks={store.laterTasks}
             onToggle={store.toggleComplete}
             onDelete={store.deleteTask}
+            onEditTitle={store.updateTaskTitle}
             onBringToToday={store.bringToToday}
           />
         )}
@@ -262,10 +273,30 @@ export default function App() {
         onSnooze={handleDueSnooze}
       />
 
-      {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bottom-32 z-40 px-4 py-2 rounded-full bg-idayal-text text-white text-[13px] font-medium shadow-elev animate-slide-in-up">
-          {toast}
+      {/* Annulation prioritaire sur le toast simple : c'est la seule des deux qui agit. */}
+      {store.undoState ? (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 pl-4 pr-1.5 py-1.5 rounded-full bg-idayal-text text-white shadow-elev animate-slide-in-up"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 132px)' }}
+        >
+          <span className="text-[13px] font-medium">{store.undoState.label}</span>
+          <button
+            type="button"
+            onClick={store.undo}
+            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-[13px] font-semibold active:scale-95 transition"
+          >
+            Annuler
+          </button>
         </div>
+      ) : (
+        toast && (
+          <div
+            className="fixed left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full bg-idayal-text text-white text-[13px] font-medium shadow-elev animate-slide-in-up"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom) + 132px)' }}
+          >
+            {toast}
+          </div>
+        )
       )}
 
       {/* La barre de saisie est disponible partout : noter ne doit jamais demander de naviguer. */}

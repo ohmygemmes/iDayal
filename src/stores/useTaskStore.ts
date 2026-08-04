@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Settings, Task } from '../types/task';
 
 const TASKS_KEY = 'idayal:tasks:v1';
@@ -99,6 +99,13 @@ function carryOverPastTasks(tasks: Task[]): { tasks: Task[]; changed: boolean } 
   return { tasks: next, changed };
 }
 
+/** Action annulable proposée à l'utilisateur juste après coup. */
+export interface UndoState {
+  /** Change à chaque nouvelle action : sert à relancer l'affichage côté UI. */
+  id: number;
+  label: string;
+}
+
 export interface TaskStore {
   tasks: Task[];
   settings: Settings;
@@ -107,6 +114,7 @@ export interface TaskStore {
   addTask: (title: string, scheduledDate?: string | null) => void;
   toggleComplete: (id: string) => void;
   deleteTask: (id: string) => void;
+  updateTaskTitle: (id: string, title: string) => void;
   postponeToTomorrow: (id: string) => void;
   bringToToday: (id: string) => void;
   pinTask: (id: string | null) => void;
@@ -116,11 +124,42 @@ export interface TaskStore {
   cleanOldCompleted: (days?: number) => number;
   exportJSON: () => string;
   importJSON: (json: string) => boolean;
+  undoState: UndoState | null;
+  undo: () => void;
+  clearUndo: () => void;
 }
 
 export function useTaskStore(): TaskStore {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+
+  /**
+   * L'annulation est stockée comme une fonction pure appliquée aux tâches
+   * *courantes*, et non comme une copie figée : si l'utilisateur ajoute une
+   * tâche entre-temps, annuler ne l'efface pas.
+   */
+  const restoreRef = useRef<((cur: Task[]) => Task[]) | null>(null);
+  const undoSeq = useRef(0);
+
+  const registerUndo = useCallback((label: string, restore: (cur: Task[]) => Task[]) => {
+    restoreRef.current = restore;
+    undoSeq.current += 1;
+    setUndoState({ id: undoSeq.current, label });
+  }, []);
+
+  const undo = useCallback(() => {
+    const restore = restoreRef.current;
+    if (!restore) return;
+    setTasks(restore);
+    restoreRef.current = null;
+    setUndoState(null);
+  }, []);
+
+  const clearUndo = useCallback(() => {
+    restoreRef.current = null;
+    setUndoState(null);
+  }, []);
 
   // Carry over au montage et à chaque retour de focus.
   useEffect(() => {
@@ -166,29 +205,74 @@ export function useTaskStore(): TaskStore {
     setTasks((prev) => [task, ...prev]);
   }, []);
 
-  const toggleComplete = useCallback((id: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, completedDate: t.completedDate ? null : new Date().toISOString() }
-          : t
-      )
-    );
+  const toggleComplete = useCallback(
+    (id: string) => {
+      setTasks((prev) => {
+        const target = prev.find((t) => t.id === id);
+        if (!target) return prev;
+        const wasDone = !!target.completedDate;
+        // Décocher est déjà une annulation : on ne propose « Annuler » qu'en cochant.
+        if (!wasDone) {
+          registerUndo('Tâche terminée', (cur) =>
+            cur.map((t) => (t.id === id ? { ...t, completedDate: null } : t))
+          );
+        }
+        return prev.map((t) =>
+          t.id === id ? { ...t, completedDate: wasDone ? null : new Date().toISOString() } : t
+        );
+      });
+    },
+    [registerUndo]
+  );
+
+  const deleteTask = useCallback(
+    (id: string) => {
+      setTasks((prev) => {
+        const index = prev.findIndex((t) => t.id === id);
+        if (index === -1) return prev;
+        const removed = prev[index];
+        registerUndo('Tâche supprimée', (cur) => {
+          if (cur.some((t) => t.id === id)) return cur; // déjà restaurée
+          const at = Math.min(index, cur.length);
+          return [...cur.slice(0, at), removed, ...cur.slice(at)];
+        });
+        return prev.filter((t) => t.id !== id);
+      });
+    },
+    [registerUndo]
+  );
+
+  const updateTaskTitle = useCallback((id: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title: trimmed } : t)));
   }, []);
 
-  const deleteTask = useCallback((id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const postponeToTomorrow = useCallback((id: string) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const iso = toLocalISODate(tomorrow);
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, scheduledDate: iso, isCarriedOver: false } : t))
-    );
-  }, []);
+  const postponeToTomorrow = useCallback(
+    (id: string) => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const iso = toLocalISODate(tomorrow);
+      setTasks((prev) => {
+        const target = prev.find((t) => t.id === id);
+        if (!target) return prev;
+        const prevScheduled = target.scheduledDate;
+        const prevCarried = target.isCarriedOver;
+        registerUndo('Reportée à demain', (cur) =>
+          cur.map((t) =>
+            t.id === id
+              ? { ...t, scheduledDate: prevScheduled, isCarriedOver: prevCarried }
+              : t
+          )
+        );
+        return prev.map((t) =>
+          t.id === id ? { ...t, scheduledDate: iso, isCarriedOver: false } : t
+        );
+      });
+    },
+    [registerUndo]
+  );
 
   const bringToToday = useCallback((id: string) => {
     const today = todayISO();
@@ -281,6 +365,7 @@ export function useTaskStore(): TaskStore {
     addTask,
     toggleComplete,
     deleteTask,
+    updateTaskTitle,
     postponeToTomorrow,
     bringToToday,
     pinTask,
@@ -289,5 +374,8 @@ export function useTaskStore(): TaskStore {
     cleanOldCompleted,
     exportJSON,
     importJSON,
+    undoState,
+    undo,
+    clearUndo,
   };
 }
