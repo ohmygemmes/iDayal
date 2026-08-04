@@ -8,6 +8,7 @@ interface Props {
   onDelete: (id: string) => void;
   onEditTitle: (id: string, title: string) => void;
   onPin: (id: string) => void;
+  onClearCompleted: () => void;
   pinnedTaskId: string | null;
 }
 
@@ -26,7 +27,15 @@ function formatTodayLabel(): string {
   );
 }
 
-export function TodayView({ tasks, onToggle, onDelete, onEditTitle, onPin, pinnedTaskId }: Props) {
+export function TodayView({
+  tasks,
+  onToggle,
+  onDelete,
+  onEditTitle,
+  onPin,
+  onClearCompleted,
+  pinnedTaskId,
+}: Props) {
   const { carried, fresh, done } = useMemo(() => {
     const carried = tasks.filter((t) => !t.completedDate && t.isCarriedOver);
     const fresh = tasks.filter((t) => !t.completedDate && !t.isCarriedOver);
@@ -99,6 +108,16 @@ export function TodayView({ tasks, onToggle, onDelete, onEditTitle, onPin, pinne
                 {done.length}
               </span>
               <span className="flex-1 h-px bg-idayal-border dark:bg-idayal-border-dark" />
+              <button
+                type="button"
+                onClick={onClearCompleted}
+                className="text-[11px] font-semibold text-idayal-text-muted hover:text-red-500 flex items-center gap-1 px-1.5 py-1 rounded-md active:scale-95 transition"
+              >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
+                </svg>
+                Effacer
+              </button>
             </div>
             <ul>
               {done.map((t) => (

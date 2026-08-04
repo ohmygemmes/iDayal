@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Settings, Task } from '../types/task';
+import type { Note, Settings, SubTask, Task } from '../types/task';
 
 const TASKS_KEY = 'idayal:tasks:v1';
 const SETTINGS_KEY = 'idayal:settings:v1';
+const NOTES_KEY = 'idayal:notes:v1';
 
 const DEFAULT_SETTINGS: Settings = {
   notificationsEnabled: false,
@@ -65,8 +66,23 @@ function loadSettings(): Settings {
   }
 }
 
+function loadNotes(): Note[] {
+  try {
+    const raw = localStorage.getItem(NOTES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Note[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 function saveTasks(tasks: Task[]) {
   localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+}
+
+function saveNotes(notes: Note[]) {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
 }
 
 function saveSettings(s: Settings) {
@@ -108,13 +124,25 @@ export interface UndoState {
 
 export interface TaskStore {
   tasks: Task[];
+  notes: Note[];
   settings: Settings;
   todayTasks: Task[];
   laterTasks: Task[];
   addTask: (title: string, scheduledDate?: string | null) => void;
   toggleComplete: (id: string) => void;
+  /** Termine une tâche en décidant du sort de sa note. */
+  completeTask: (id: string, keepNote: boolean) => void;
   deleteTask: (id: string) => void;
   updateTaskTitle: (id: string, title: string) => void;
+  setTaskNote: (id: string, note: string) => void;
+  addSubtask: (taskId: string, title: string) => void;
+  toggleSubtask: (taskId: string, subId: string) => void;
+  deleteSubtask: (taskId: string, subId: string) => void;
+  /** Supprime toutes les tâches déjà faites. Renvoie le nombre supprimé. */
+  clearCompleted: () => number;
+  addNote: (text: string) => void;
+  updateNote: (id: string, text: string) => void;
+  deleteNote: (id: string) => void;
   postponeToTomorrow: (id: string) => void;
   bringToToday: (id: string) => void;
   pinTask: (id: string | null) => void;
@@ -131,6 +159,7 @@ export interface TaskStore {
 
 export function useTaskStore(): TaskStore {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [notes, setNotes] = useState<Note[]>(() => loadNotes());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [undoState, setUndoState] = useState<UndoState | null>(null);
 
@@ -185,6 +214,9 @@ export function useTaskStore(): TaskStore {
   useEffect(() => {
     saveTasks(tasks);
   }, [tasks]);
+  useEffect(() => {
+    saveNotes(notes);
+  }, [notes]);
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
@@ -246,6 +278,118 @@ export function useTaskStore(): TaskStore {
     const trimmed = title.trim();
     if (!trimmed) return;
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title: trimmed } : t)));
+  }, []);
+
+  const setTaskNote = useCallback((id: string, note: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, note } : t)));
+  }, []);
+
+  const addSubtask = useCallback((taskId: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    const sub: SubTask = { id: newId(), title: trimmed, done: false };
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, subtasks: [...(t.subtasks ?? []), sub] } : t))
+    );
+  }, []);
+
+  const toggleSubtask = useCallback((taskId: string, subId: string) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              subtasks: (t.subtasks ?? []).map((s) =>
+                s.id === subId ? { ...s, done: !s.done } : s
+              ),
+            }
+          : t
+      )
+    );
+  }, []);
+
+  const deleteSubtask = useCallback((taskId: string, subId: string) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: (t.subtasks ?? []).filter((s) => s.id !== subId) }
+          : t
+      )
+    );
+  }, []);
+
+  /**
+   * Termine une tâche. Si elle porte une note, `keepNote` décide si celle-ci
+   * rejoint la page Notes ou disparaît avec la tâche.
+   */
+  const completeTask = useCallback(
+    (id: string, keepNote: boolean) => {
+      setTasks((prev) => {
+        const target = prev.find((t) => t.id === id);
+        if (!target || target.completedDate) return prev;
+
+        const note = (target.note ?? '').trim();
+        if (keepNote && note) {
+          const kept: Note = {
+            id: newId(),
+            text: note,
+            createdAt: new Date().toISOString(),
+            fromTaskTitle: target.title,
+          };
+          setNotes((cur) => [kept, ...cur]);
+        }
+
+        registerUndo('Tâche terminée', (cur) =>
+          cur.map((t) => (t.id === id ? { ...t, completedDate: null } : t))
+        );
+
+        return prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                completedDate: new Date().toISOString(),
+                note: keepNote ? t.note : '',
+              }
+            : t
+        );
+      });
+    },
+    [registerUndo]
+  );
+
+  const clearCompleted = useCallback(() => {
+    let removed = 0;
+    setTasks((prev) => {
+      const done = prev.filter((t) => !!t.completedDate);
+      removed = done.length;
+      if (!removed) return prev;
+      registerUndo(
+        `${removed} tâche${removed > 1 ? 's' : ''} effacée${removed > 1 ? 's' : ''}`,
+        (cur) => {
+          const missing = done.filter((d) => !cur.some((t) => t.id === d.id));
+          return missing.length ? [...cur, ...missing] : cur;
+        }
+      );
+      return prev.filter((t) => !t.completedDate);
+    });
+    return removed;
+  }, [registerUndo]);
+
+  const addNote = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setNotes((prev) => [
+      { id: newId(), text: trimmed, createdAt: new Date().toISOString() },
+      ...prev,
+    ]);
+  }, []);
+
+  const updateNote = useCallback((id: string, text: string) => {
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, text } : n)));
+  }, []);
+
+  const deleteNote = useCallback((id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const postponeToTomorrow = useCallback(
@@ -359,13 +503,23 @@ export function useTaskStore(): TaskStore {
 
   return {
     tasks,
+    notes,
     settings,
     todayTasks,
     laterTasks,
     addTask,
     toggleComplete,
+    completeTask,
     deleteTask,
     updateTaskTitle,
+    setTaskNote,
+    addSubtask,
+    toggleSubtask,
+    deleteSubtask,
+    clearCompleted,
+    addNote,
+    updateNote,
+    deleteNote,
     postponeToTomorrow,
     bringToToday,
     pinTask,

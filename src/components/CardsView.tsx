@@ -8,9 +8,14 @@ interface Props {
   todayTasks: Task[];
   laterTasks: Task[];
   pinnedTaskId: string | null;
+  /** Demande la complétion ; App arbitre les confirmations éventuelles. */
   onComplete: (id: string) => void;
   onPostpone: (id: string) => void;
   onPromoteToTop: (id: string) => void;
+  onSetNote: (id: string, text: string) => void;
+  onAddSubtask: (taskId: string, title: string) => void;
+  onToggleSubtask: (taskId: string, subId: string) => void;
+  onDeleteSubtask: (taskId: string, subId: string) => void;
 }
 
 function formatLaterDate(iso: string): string {
@@ -29,6 +34,10 @@ export function CardsView({
   onComplete,
   onPostpone,
   onPromoteToTop,
+  onSetNote,
+  onAddSubtask,
+  onToggleSubtask,
+  onDeleteSubtask,
 }: Props) {
   const stack = useMemo(() => buildStack(todayTasks, pinnedTaskId), [todayTasks, pinnedTaskId]);
 
@@ -122,6 +131,10 @@ export function CardsView({
                 depth={i}
                 onDone={() => handleDone(t.id)}
                 onPostpone={() => handlePostpone(t.id)}
+                onSetNote={(text) => onSetNote(t.id, text)}
+                onAddSubtask={(title) => onAddSubtask(t.id, title)}
+                onToggleSubtask={(subId) => onToggleSubtask(t.id, subId)}
+                onDeleteSubtask={(subId) => onDeleteSubtask(t.id, subId)}
               />
             ))}
           </div>

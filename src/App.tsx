@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrandHeader } from './components/BrandHeader';
 import { CardsView } from './components/CardsView';
+import { CompleteTaskDialog, type CompleteStep } from './components/CompleteTaskDialog';
 import { DueTaskBanner } from './components/DueTaskBanner';
 import { LaterView } from './components/LaterView';
+import { NotesView } from './components/NotesView';
 import { QuickAddBar } from './components/QuickAddBar';
 import { SettingsModal } from './components/SettingsModal';
 import { TabBar } from './components/TabBar';
@@ -40,6 +42,10 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
   /** Tâche interrompue par un « Faire maintenant », à reprendre une fois l'urgence traitée. */
   const [resumeTaskId, setResumeTaskId] = useState<string | null>(null);
+  /** Complétion en attente d'une confirmation (étapes restantes, sort de la note). */
+  const [pendingComplete, setPendingComplete] = useState<{ id: string; step: CompleteStep } | null>(
+    null
+  );
   const addInputRef = useRef<HTMLInputElement>(null);
 
   // Application du thème + écoute des changements système.
@@ -170,6 +176,7 @@ export default function App() {
       } else if (e.key === '1') setTab('today');
       else if (e.key === '2') setTab('cards');
       else if (e.key === '3') setTab('later');
+      else if (e.key === '4') setTab('notes');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -187,6 +194,43 @@ export default function App() {
 
   const handleAdd = (title: string, scheduledDate: string | null) => {
     store.addTask(title, scheduledDate);
+  };
+
+  /**
+   * Passage obligé pour terminer une tâche, quel que soit l'endroit d'où on
+   * clique : la carte comme la liste. On ne demande que ce qui s'applique.
+   */
+  const requestComplete = (id: string) => {
+    const task = store.tasks.find((t) => t.id === id);
+    if (!task) return;
+    if (task.completedDate) {
+      store.toggleComplete(id); // décocher : rien à confirmer
+      return;
+    }
+    if ((task.subtasks ?? []).some((s) => !s.done)) {
+      setPendingComplete({ id, step: 'subtasks' });
+      return;
+    }
+    if ((task.note ?? '').trim()) {
+      setPendingComplete({ id, step: 'note' });
+      return;
+    }
+    store.completeTask(id, false);
+  };
+
+  const pendingTask = pendingComplete
+    ? store.tasks.find((t) => t.id === pendingComplete.id) ?? null
+    : null;
+
+  const handleCompleteConfirm = (keepNote: boolean) => {
+    if (!pendingComplete || !pendingTask) return;
+    // Les étapes validées, on enchaîne sur le sort de la note s'il y en a une.
+    if (pendingComplete.step === 'subtasks' && (pendingTask.note ?? '').trim()) {
+      setPendingComplete({ id: pendingComplete.id, step: 'note' });
+      return;
+    }
+    store.completeTask(pendingComplete.id, keepNote);
+    setPendingComplete(null);
   };
 
   /** Depuis le paquet, ramène la tâche à aujourd'hui si besoin et la met en cours. */
@@ -228,7 +272,7 @@ export default function App() {
 
   return (
     <div className="app-shell flex flex-col">
-      <BrandHeader onOpenSettings={() => setSettingsOpen(true)} />
+      <BrandHeader />
       <main
         className={`flex-1 min-h-0 transition-opacity duration-150 ${
           transitioning ? 'opacity-0' : 'opacity-100'
@@ -237,10 +281,11 @@ export default function App() {
         {tab === 'today' && (
           <TodayView
             tasks={store.todayTasks}
-            onToggle={store.toggleComplete}
+            onToggle={requestComplete}
             onDelete={store.deleteTask}
             onEditTitle={store.updateTaskTitle}
             onPin={store.pinTask}
+            onClearCompleted={store.clearCompleted}
             pinnedTaskId={store.settings.pinnedTaskId}
           />
         )}
@@ -258,12 +303,31 @@ export default function App() {
             todayTasks={store.todayTasks}
             laterTasks={store.laterTasks}
             pinnedTaskId={store.settings.pinnedTaskId}
-            onComplete={store.toggleComplete}
+            onComplete={requestComplete}
             onPostpone={store.postponeToTomorrow}
             onPromoteToTop={handlePromoteToTop}
+            onSetNote={store.setTaskNote}
+            onAddSubtask={store.addSubtask}
+            onToggleSubtask={store.toggleSubtask}
+            onDeleteSubtask={store.deleteSubtask}
+          />
+        )}
+        {tab === 'notes' && (
+          <NotesView
+            notes={store.notes}
+            onAdd={store.addNote}
+            onUpdate={store.updateNote}
+            onDelete={store.deleteNote}
           />
         )}
       </main>
+
+      <CompleteTaskDialog
+        task={pendingTask}
+        step={pendingComplete?.step ?? null}
+        onConfirm={handleCompleteConfirm}
+        onCancel={() => setPendingComplete(null)}
+      />
 
       <DueTaskBanner
         task={dueTask}
@@ -279,11 +343,11 @@ export default function App() {
           className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 pl-4 pr-1.5 py-1.5 rounded-full bg-idayal-text text-white shadow-elev animate-slide-in-up"
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 132px)' }}
         >
-          <span className="text-[13px] font-medium">{store.undoState.label}</span>
+          <span className="text-[13px] font-medium whitespace-nowrap">{store.undoState.label}</span>
           <button
             type="button"
             onClick={store.undo}
-            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-[13px] font-semibold active:scale-95 transition"
+            className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-[13px] font-semibold whitespace-nowrap active:scale-95 transition"
           >
             Annuler
           </button>
@@ -302,7 +366,7 @@ export default function App() {
       {/* La barre de saisie est disponible partout : noter ne doit jamais demander de naviguer. */}
       <QuickAddBar onAdd={handleAdd} inputRef={addInputRef} />
 
-      <TabBar active={tab} onChange={handleTab} />
+      <TabBar active={tab} onChange={handleTab} onOpenSettings={() => setSettingsOpen(true)} />
 
       <SettingsModal
         open={settingsOpen}

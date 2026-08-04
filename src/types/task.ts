@@ -1,3 +1,9 @@
+export interface SubTask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -11,9 +17,25 @@ export interface Task {
   isCarriedOver: boolean;
   /** ISO date YYYY-MM-DD originale (avant report). */
   originalDate: string;
+  /** Note libre écrite pendant qu'on travaille sur la tâche. */
+  note?: string;
+  /** Étapes de la tâche. Absent tant qu'on n'en a pas ajouté. */
+  subtasks?: SubTask[];
 }
 
-export type TabKey = 'today' | 'later' | 'cards';
+/**
+ * Note conservée dans la page Notes. Une note peut être autonome, ou provenir
+ * d'une tâche terminée dont on a choisi de garder le contenu.
+ */
+export interface Note {
+  id: string;
+  text: string;
+  createdAt: string;
+  /** Titre de la tâche d'origine, figé : la tâche peut disparaître ensuite. */
+  fromTaskTitle?: string;
+}
+
+export type TabKey = 'today' | 'later' | 'cards' | 'notes';
 
 export interface Settings {
   notificationsEnabled: boolean;
