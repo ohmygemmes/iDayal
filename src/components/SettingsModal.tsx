@@ -4,6 +4,8 @@ import {
   requestNotificationPermission,
 } from '../services/notificationService';
 import type { Settings } from '../types/task';
+import { SyncSection } from './SyncSection';
+import type { CloudSync } from '../hooks/useCloudSync';
 
 interface Props {
   open: boolean;
@@ -14,6 +16,7 @@ interface Props {
   onExport: () => string;
   onImport: (json: string) => boolean;
   appVersion: string;
+  sync: CloudSync;
 }
 
 export function SettingsModal({
@@ -25,6 +28,7 @@ export function SettingsModal({
   onExport,
   onImport,
   appVersion,
+  sync,
 }: Props) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -121,6 +125,8 @@ export function SettingsModal({
         </div>
 
         <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: 'calc(90vh - 60px)' }}>
+          <SyncSection sync={sync} />
+
           {/* Notifications */}
           <section className="mb-5">
             <div className="flex items-center justify-between bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev border border-idayal-border dark:border-idayal-border-dark rounded-row px-4 py-3 shadow-sm">

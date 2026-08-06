@@ -11,11 +11,23 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 // Enregistrement du service worker (uniquement en prod, pour ne pas perturber le HMR).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  // Quand une nouvelle version prend le contrôle, on recharge une fois pour
-  // que la page utilise le nouveau code au lieu de rester sur l'ancien.
+  /*
+   * Recharger quand une nouvelle version prend la main permet de ne pas rester
+   * bloqué sur du code périmé.
+   *
+   * Mais à la toute première visite il n'y a aucun contrôleur : le service
+   * worker s'installe, revendique la page, et « controllerchange » se déclenche
+   * alors qu'il n'y a rien à mettre à jour. Recharger là détruit ce que la page
+   * était en train de faire — typiquement une tâche capturée via ?add= par le
+   * raccourci Siri, perdue avant d'avoir été enregistrée.
+   *
+   * On ne recharge donc que s'il y avait déjà un contrôleur, c'est-à-dire en
+   * cas de vraie mise à jour.
+   */
+  const hadController = Boolean(navigator.serviceWorker.controller);
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return;
+    if (!hadController || reloading) return;
     reloading = true;
     window.location.reload();
   });

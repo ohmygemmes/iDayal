@@ -12,6 +12,7 @@ import { TodayView } from './components/TodayView';
 import { parseFrenchDate } from './services/frenchDateParser';
 import { scheduleNotifications } from './services/notificationService';
 import { buildStack } from './services/stack';
+import { useCloudSync } from './hooks/useCloudSync';
 import { toLocalISODate, toLocalISODateTime, useTaskStore } from './stores/useTaskStore';
 import type { TabKey } from './types/task';
 
@@ -34,6 +35,11 @@ function toStored(d: Date): string {
 
 export default function App() {
   const store = useTaskStore();
+  const sync = useCloudSync({
+    tasks: store.tasks,
+    notes: store.notes,
+    replaceAll: store.replaceAll,
+  });
   const [tab, setTab] = useState<TabKey>('today');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
@@ -377,6 +383,7 @@ export default function App() {
         onExport={store.exportJSON}
         onImport={store.importJSON}
         appVersion={APP_VERSION}
+        sync={sync}
       />
     </div>
   );

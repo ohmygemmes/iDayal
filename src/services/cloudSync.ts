@@ -1,37 +1,49 @@
-import { createClient, type Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import type { Note, Task } from '../types/task';
 
 /**
  * Synchronisation personnelle entre appareils.
  *
  * Volontairement optionnelle : sans connexion, iDayal reste une application
- * strictement locale. C'est la promesse produit (« pas de compte »), la
+ * strictement locale. C'est la promesse produit (« pas de compte ») ; la
  * synchro n'est qu'un confort pour un usage multi-appareils.
  *
- * La clé publiable est faite pour être exposée côté navigateur : ce n'est pas
- * un secret. La protection repose sur la RLS, qui restreint chaque ligne à son
- * propriétaire.
+ * La bibliothèque Supabase pèse à elle seule autant que toute l'application.
+ * Elle est donc chargée **à la demande** : une installation sans
+ * synchronisation ne la télécharge jamais.
+ *
+ * L'adresse du projet relève du déploiement, pas du code : elle n'est donc pas
+ * écrite en dur dans un dépôt public.
  */
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
 const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_KEY as string | undefined) ?? '';
 
-/**
- * Sans configuration, aucune synchronisation : l'application reste purement
- * locale. L'adresse du projet relève du déploiement, pas du code — elle n'est
- * donc pas écrite en dur dans un dépôt public.
- */
 export const cloudEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
-const client = cloudEnabled
-  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-    })
-  : null;
+// iDayal a son propre schéma, distinct de « public » (commandes) et de
+// « dashboard » (cockpit). Il doit figurer dans les schémas exposés du projet,
+// sinon l'API REST le refuse.
+const SCHEMA = 'idayal';
+const TABLE = 'state';
 
-/** Lève si la synchro n'est pas configurée : les appelants testent `cloudEnabled`. */
-function requireClient() {
-  if (!client) throw new Error("La synchronisation n'est pas configurée.");
-  return client;
+let clientPromise: Promise<SupabaseClient> | null = null;
+
+function getClient(): Promise<SupabaseClient> | null {
+  if (!cloudEnabled) return null;
+  if (!clientPromise) {
+    clientPromise = import('@supabase/supabase-js').then(({ createClient }) =>
+      createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      })
+    );
+  }
+  return clientPromise;
+}
+
+async function requireClient(): Promise<SupabaseClient> {
+  const c = getClient();
+  if (!c) throw new Error("La synchronisation n'est pas configurée.");
+  return c;
 }
 
 export interface CloudState {
@@ -44,41 +56,55 @@ export interface RemoteSnapshot {
   updatedAt: string;
 }
 
-const TABLE = 'idayal_state';
-
 export async function getSession(): Promise<Session | null> {
-  if (!client) return null;
-  const { data } = await client.auth.getSession();
+  const c = getClient();
+  if (!c) return null;
+  const { data } = await (await c).auth.getSession();
   return data.session;
 }
 
 export function onAuthChange(cb: (session: Session | null) => void) {
-  if (!client) return () => {};
-  const { data } = client.auth.onAuthStateChange((_e, session) => cb(session));
-  return () => data.subscription.unsubscribe();
+  const c = getClient();
+  if (!c) return () => {};
+  let unsubscribe: (() => void) | null = null;
+  let cancelled = false;
+  void c.then((client) => {
+    if (cancelled) return;
+    const { data } = client.auth.onAuthStateChange((_e, session) => cb(session));
+    unsubscribe = () => data.subscription.unsubscribe();
+  });
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
 }
 
 export async function signIn(email: string, password: string) {
-  const { error } = await requireClient().auth.signInWithPassword({ email, password });
+  const client = await requireClient();
+  const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw new Error(traduireErreur(error.message));
 }
 
 export async function signUp(email: string, password: string) {
-  const { error } = await requireClient().auth.signUp({ email, password });
+  const client = await requireClient();
+  const { error } = await client.auth.signUp({ email, password });
   if (error) throw new Error(traduireErreur(error.message));
 }
 
 export async function signOut() {
-  if (client) await client.auth.signOut();
+  const c = getClient();
+  if (c) await (await c).auth.signOut();
 }
 
 /** Récupère l'état distant, ou null si le compte n'a encore rien envoyé. */
 export async function pull(): Promise<RemoteSnapshot | null> {
-  const { data, error } = await requireClient()
+  const client = await requireClient();
+  const { data, error } = await client
+    .schema(SCHEMA)
     .from(TABLE)
     .select('data, updated_at')
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(traduireErreur(error.message));
   if (!data) return null;
   const raw = (data.data ?? {}) as Partial<CloudState>;
   return {
@@ -90,16 +116,15 @@ export async function pull(): Promise<RemoteSnapshot | null> {
   };
 }
 
-/** Écrit l'état complet. Renvoie l'horodatage retenu par le serveur. */
+/** Écrit l'état complet. Renvoie l'horodatage retenu. */
 export async function push(userId: string, state: CloudState): Promise<string> {
+  const client = await requireClient();
   const updatedAt = new Date().toISOString();
-  const { error } = await requireClient()
+  const { error } = await client
+    .schema(SCHEMA)
     .from(TABLE)
-    .upsert(
-      { user_id: userId, data: state, updated_at: updatedAt },
-      { onConflict: 'user_id' }
-    );
-  if (error) throw new Error(error.message);
+    .upsert({ user_id: userId, data: state, updated_at: updatedAt }, { onConflict: 'user_id' });
+  if (error) throw new Error(traduireErreur(error.message));
   return updatedAt;
 }
 
@@ -111,5 +136,8 @@ function traduireErreur(message: string): string {
   if (m.includes('password') && m.includes('6')) return 'Mot de passe : 6 caractères minimum.';
   if (m.includes('signups not allowed') || m.includes('signup is disabled'))
     return 'Les inscriptions sont fermées sur ce projet.';
+  if (m.includes('schema must be one of'))
+    return "Le schéma « idayal » n'est pas exposé dans les réglages API du projet.";
+  if (m.includes('failed to fetch')) return 'Pas de réseau.';
   return message;
 }

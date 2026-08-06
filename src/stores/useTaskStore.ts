@@ -140,6 +140,8 @@ export interface TaskStore {
   deleteSubtask: (taskId: string, subId: string) => void;
   /** Supprime toutes les tâches déjà faites. Renvoie le nombre supprimé. */
   clearCompleted: () => number;
+  /** Remplace intégralement l'état local (utilisé par la synchronisation). */
+  replaceAll: (tasks: Task[], notes: Note[]) => void;
   addNote: (text: string) => void;
   updateNote: (id: string, text: string) => void;
   deleteNote: (id: string) => void;
@@ -375,6 +377,12 @@ export function useTaskStore(): TaskStore {
     return removed;
   }, [registerUndo]);
 
+  const replaceAll = useCallback((nextTasks: Task[], nextNotes: Note[]) => {
+    setTasks(Array.isArray(nextTasks) ? nextTasks : []);
+    setNotes(Array.isArray(nextNotes) ? nextNotes : []);
+    clearUndo();
+  }, [clearUndo]);
+
   const addNote = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -517,6 +525,7 @@ export function useTaskStore(): TaskStore {
     toggleSubtask,
     deleteSubtask,
     clearCompleted,
+    replaceAll,
     addNote,
     updateNote,
     deleteNote,
