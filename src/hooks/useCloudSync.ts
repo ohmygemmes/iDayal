@@ -8,6 +8,7 @@ import {
   subscribeToRemoteChanges,
   type CloudState,
 } from '../services/cloudSync';
+import { decideSync } from '../services/syncDecision';
 import type { Note, Task } from '../types/task';
 
 /** Horodatage de la dernière modification locale, pour arbitrer avec le distant. */
@@ -19,6 +20,9 @@ const EDITED_KEY = 'idayal:localEditedAt:v1';
  * écran que personne ne regarde.
  */
 const POLL_MS = 30_000;
+
+/** Délai avant envoi, pour ne pas écrire à chaque frappe. */
+const PUSH_DEBOUNCE_MS = 1500;
 
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'error';
 
@@ -45,10 +49,14 @@ function readEditedAt(): number {
 /**
  * Synchronise l'état d'un utilisateur entre ses appareils.
  *
- * Modèle volontairement simple : l'état complet est écrit d'un bloc, et le plus
- * récent gagne. Pour une personne sur deux appareils, les modifications
- * simultanées sont rares ; un fusionnement ligne à ligne coûterait bien plus
- * cher en complexité qu'il ne rapporte ici.
+ * L'état complet est écrit d'un bloc et le plus récent gagne. Pour une personne
+ * sur deux appareils, les modifications simultanées sont rares ; un fusionnement
+ * ligne à ligne coûterait bien plus cher en complexité qu'il ne rapporte.
+ *
+ * Deux protections encadrent ce modèle simple :
+ *  - **aucun envoi avant la première réconciliation** — sinon l'état initial,
+ *    souvent vide, part sur le serveur avant même d'avoir lu ce qui s'y trouve ;
+ *  - **un appareil vierge n'écrase jamais le serveur** (voir `decideSync`).
  */
 export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
   const [email, setEmail] = useState<string | null>(null);
@@ -61,6 +69,12 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
   const syncedRef = useRef<string>('');
   /** Vrai pendant l'application d'un état distant, pour ne pas le réémettre. */
   const applyingRef = useRef(false);
+  /**
+   * Faux tant que la première lecture du serveur n'a pas abouti pour ce compte.
+   * Tant qu'il l'est, aucune écriture n'est permise : c'est ce qui empêche un
+   * appareil fraîchement connecté d'envoyer sa liste vide.
+   */
+  const readyRef = useRef(false);
   const pushTimer = useRef<number | null>(null);
 
   // Session courante.
@@ -77,6 +91,7 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
       setUserId(s?.user.id ?? null);
       if (!s) {
         syncedRef.current = '';
+        readyRef.current = false;
         setLastSyncedAt(null);
       }
     });
@@ -85,6 +100,12 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
       off();
     };
   }, []);
+
+  // Changer de compte remet le garde-fou en place.
+  useEffect(() => {
+    readyRef.current = false;
+    syncedRef.current = '';
+  }, [userId]);
 
   const serialize = useCallback(
     () => JSON.stringify({ tasks, notes } satisfies CloudState),
@@ -100,34 +121,30 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
       const remote = await pull();
       const localJson = JSON.stringify({ tasks, notes } satisfies CloudState);
 
-      if (!remote) {
-        const at = await push(userId, { tasks, notes });
-        syncedRef.current = localJson;
-        setLastSyncedAt(at);
-        setStatus('idle');
-        return;
-      }
+      const decision = decideSync({
+        localJson,
+        localIsEmpty: tasks.length === 0 && notes.length === 0,
+        remote: remote ? { json: JSON.stringify(remote.data), updatedAt: remote.updatedAt } : null,
+        lastLocalEditAt: readEditedAt(),
+      });
 
-      const remoteJson = JSON.stringify(remote.data);
-      if (remoteJson === localJson) {
-        syncedRef.current = localJson;
-        setLastSyncedAt(remote.updatedAt);
-        setStatus('idle');
-        return;
-      }
-
-      const remoteAt = new Date(remote.updatedAt).getTime();
-      if (remoteAt > readEditedAt()) {
-        // Le serveur est en avance : on adopte, sans réémettre derrière.
+      if (decision === 'adopt' && remote) {
+        // On adopte sans réémettre derrière, et sans marquer de modification
+        // locale : ce contenu vient du serveur, il n'a pas été édité ici.
         applyingRef.current = true;
-        syncedRef.current = remoteJson;
+        syncedRef.current = JSON.stringify(remote.data);
         replaceAll(remote.data.tasks, remote.data.notes);
         setLastSyncedAt(remote.updatedAt);
-      } else {
+      } else if (decision === 'push') {
         const at = await push(userId, { tasks, notes });
         syncedRef.current = localJson;
         setLastSyncedAt(at);
+      } else if (remote) {
+        syncedRef.current = localJson;
+        setLastSyncedAt(remote.updatedAt);
       }
+
+      readyRef.current = true;
       setStatus('idle');
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -171,24 +188,26 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
   // Réconciliation à la connexion, au retour sur l'app et au retour du réseau.
   useEffect(() => {
     if (!userId) return;
-    reconcile();
+    void reconcileRef.current();
     const onVisible = () => {
-      if (document.visibilityState === 'visible') reconcile();
+      if (document.visibilityState === 'visible') void reconcileRef.current();
     };
+    const onOnline = () => void reconcileRef.current();
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('online', reconcile);
+    window.addEventListener('online', onOnline);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('online', reconcile);
+      window.removeEventListener('online', onOnline);
     };
-    // `reconcile` change à chaque modification locale ; on ne veut relancer
-    // que sur un changement de compte.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Envoi différé après une modification locale.
   useEffect(() => {
     if (!userId) return;
+    // Tant que le serveur n'a pas été lu, on n'écrit rien : c'est la protection
+    // contre l'écrasement par un appareil qui vient d'ouvrir l'application.
+    if (!readyRef.current) return;
+
     const json = serialize();
 
     if (applyingRef.current) {
@@ -213,7 +232,7 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
         setLastError(e instanceof Error ? e.message : String(e));
         setStatus('error');
       }
-    }, 1500);
+    }, PUSH_DEBOUNCE_MS);
 
     return () => {
       if (pushTimer.current) window.clearTimeout(pushTimer.current);

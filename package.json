@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && gh-pages -d dist",
-    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts"
+    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts && npx --yes tsx src/services/__tests__/syncDecision.test.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.1",
