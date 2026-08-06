@@ -12,6 +12,7 @@
     "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
