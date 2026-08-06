@@ -5,12 +5,20 @@ import {
   onAuthChange,
   pull,
   push,
+  subscribeToRemoteChanges,
   type CloudState,
 } from '../services/cloudSync';
 import type { Note, Task } from '../types/task';
 
 /** Horodatage de la dernière modification locale, pour arbitrer avec le distant. */
 const EDITED_KEY = 'idayal:localEditedAt:v1';
+
+/**
+ * Relecture de secours quand le temps réel n'est pas disponible. Suspendue dès
+ * que l'onglet passe en arrière-plan : inutile d'interroger le serveur pour un
+ * écran que personne ne regarde.
+ */
+const POLL_MS = 30_000;
 
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'error';
 
@@ -126,6 +134,39 @@ export function useCloudSync({ tasks, notes, replaceAll }: Params): CloudSync {
       setStatus('error');
     }
   }, [userId, tasks, notes, replaceAll]);
+
+  // `reconcile` change à chaque modification locale ; les abonnements, eux,
+  // ne doivent dépendre que du compte. On passe donc par une référence.
+  const reconcileRef = useRef(reconcile);
+  reconcileRef.current = reconcile;
+
+  // Notification immédiate quand l'autre appareil écrit.
+  useEffect(() => {
+    if (!userId) return;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    subscribeToRemoteChanges(userId, () => void reconcileRef.current())
+      .then((off) => {
+        if (cancelled) off();
+        else stop = off;
+      })
+      .catch(() => {
+        // Temps réel indisponible : la relecture périodique suffit.
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [userId]);
+
+  // Filet de sécurité : relecture régulière tant que l'écran est visible.
+  useEffect(() => {
+    if (!userId) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void reconcileRef.current();
+    }, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [userId]);
 
   // Réconciliation à la connexion, au retour sur l'app et au retour du réseau.
   useEffect(() => {

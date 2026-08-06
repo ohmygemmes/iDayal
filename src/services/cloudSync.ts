@@ -128,6 +128,32 @@ export async function push(userId: string, state: CloudState): Promise<string> {
   return updatedAt;
 }
 
+/**
+ * Prévient dès que la ligne de l'utilisateur change sur le serveur, pour que
+ * l'autre appareil se mette à jour sans attendre.
+ *
+ * Nécessite que la table appartienne à la publication temps réel. Si ce n'est
+ * pas le cas, l'abonnement échoue silencieusement et la relecture périodique
+ * prend le relais.
+ */
+export async function subscribeToRemoteChanges(
+  userId: string,
+  onChange: () => void
+): Promise<() => void> {
+  const client = await requireClient();
+  const channel = client
+    .channel(`idayal-state-${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: SCHEMA, table: TABLE, filter: `user_id=eq.${userId}` },
+      () => onChange()
+    )
+    .subscribe();
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
 function traduireErreur(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login')) return 'Adresse ou mot de passe incorrect.';
