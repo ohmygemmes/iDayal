@@ -136,8 +136,11 @@ function traduireErreur(message: string): string {
   if (m.includes('password') && m.includes('6')) return 'Mot de passe : 6 caractères minimum.';
   if (m.includes('signups not allowed') || m.includes('signup is disabled'))
     return 'Les inscriptions sont fermées sur ce projet.';
-  if (m.includes('schema must be one of'))
-    return "Le schéma « idayal » n'est pas exposé dans les réglages API du projet.";
+  // Deux formulations selon la version de PostgREST, même cause.
+  if (m.includes('schema must be one of') || m.includes('invalid schema'))
+    return 'Schéma non exposé : coche « idayal » dans Settings → API → Exposed schemas, puis enregistre.';
+  if (m.includes('permission denied'))
+    return "Droits manquants sur le schéma « idayal ».";
   if (m.includes('failed to fetch')) return 'Pas de réseau.';
   return message;
 }
