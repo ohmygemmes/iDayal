@@ -23,6 +23,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [value, setValue] = useState('');
   const [manualDate, setManualDate] = useState(''); // datetime-local string
   const [showPicker, setShowPicker] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const localRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? localRef;
@@ -98,9 +99,10 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     <div
       className="fixed left-1/2 -translate-x-1/2 w-full max-w-app z-20 px-3"
       style={{
+        // 82px : la barre d'onglets culmine à 74px du bas, on garde 8px d'écart.
         bottom: keyboardOffset
           ? `calc(${keyboardOffset}px + 8px)`
-          : 'calc(env(safe-area-inset-bottom) + 64px)',
+          : 'calc(env(safe-area-inset-bottom) + 82px)',
         transition: 'bottom 0.12s ease-out',
       }}
     >
@@ -156,7 +158,11 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           e.preventDefault();
           submit();
         }}
-        className="flex items-center gap-1.5 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark pl-4 pr-2 py-2"
+        className={`flex items-center gap-1.5 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-[28px] pl-5 pr-2 py-2 transition-all duration-200 ${
+          focused
+            ? 'ring-2 ring-idayal-blue/45 shadow-[0_10px_32px_-6px_rgba(59,125,216,0.40),0_2px_8px_rgba(15,16,32,0.10)]'
+            : 'ring-1 ring-idayal-blue/15 shadow-[0_8px_28px_-6px_rgba(15,16,32,0.22),0_2px_6px_rgba(15,16,32,0.08)]'
+        }`}
       >
         <input
           ref={inputRef}
@@ -165,12 +171,15 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           onChange={(e) => setValue(e.target.value)}
           onPaste={handlePaste}
           onFocus={() => {
+            setFocused(true);
             window.setTimeout(() => {
               inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }, 200);
           }}
+          onBlur={() => setFocused(false)}
           placeholder="Noter une tâche…"
-          className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-idayal-text-muted text-idayal-text dark:text-zinc-100 tracking-tightish"
+          /* 16px minimum : en dessous, Safari iOS zoome la page à la mise au point. */
+          className="flex-1 min-w-0 h-11 bg-transparent outline-none text-[16px] placeholder:text-idayal-text-muted text-idayal-text dark:text-zinc-100"
           enterKeyHint="send"
           autoComplete="off"
           autoCorrect="off"
@@ -179,13 +188,13 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           type="button"
           onClick={() => setShowPicker((v) => !v)}
           aria-label="Choisir une date"
-          className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition-all ${
+          className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-all ${
             showPicker || manualDate
               ? 'bg-idayal-blue-soft text-idayal-blue dark:bg-idayal-blue/20'
               : 'text-idayal-text-muted hover:text-idayal-blue hover:bg-zinc-100 dark:hover:bg-zinc-800'
           }`}
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="16" rx="2" />
             <path d="M3 9h18M8 3v4M16 3v4" />
           </svg>
@@ -194,9 +203,9 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           type="submit"
           aria-label="Ajouter la tâche"
           disabled={!value.trim()}
-          className="w-9 h-9 rounded-full bg-idayal-blue text-white flex items-center justify-center disabled:opacity-30 disabled:bg-idayal-text-muted active:scale-90 transition-all shadow-[0_4px_12px_rgba(59,125,216,0.35)] disabled:shadow-none"
+          className="w-11 h-11 rounded-full bg-idayal-blue text-white flex items-center justify-center flex-shrink-0 disabled:opacity-30 disabled:bg-idayal-text-muted active:scale-90 transition-all shadow-[0_4px_14px_rgba(59,125,216,0.45)] disabled:shadow-none"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
