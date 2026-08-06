@@ -16,7 +16,7 @@ import { useCloudSync } from './hooks/useCloudSync';
 import { toLocalISODate, toLocalISODateTime, useTaskStore } from './stores/useTaskStore';
 import type { TabKey } from './types/task';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const SNOOZE_MS = 10 * 60 * 1000;
 const FOREVER = Number.MAX_SAFE_INTEGER;
 
