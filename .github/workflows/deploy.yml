@@ -35,8 +35,14 @@ jobs:
       - name: Test
         run: npm test
 
+      # Synchronisation facultative : si ces secrets ne sont pas définis, les
+      # variables sont vides et l'application se construit en mode purement
+      # local — aucun compte, aucune requête réseau.
       - name: Build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
