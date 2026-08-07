@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Ouvre l'URL affichée (`http://localhost:5173/iDayal/`) dans le navigateur.
+Ouvre l'URL affichée (`http://localhost:5173/`) dans le navigateur.
 
 ## Build de production
 
@@ -32,30 +32,41 @@ npm run build
 npm run preview
 ```
 
-## Déploiement GitHub Pages
+## Adresse et déploiement
 
-1. Crée un dépôt GitHub nommé exactement **`iDayal`** (le `base` dans
-   `vite.config.ts` est déjà `/iDayal/`).
-2. Pousse ton code sur la branche `main` :
-   ```bash
-   git remote add origin git@github.com:<username>/iDayal.git
-   git push -u origin main
-   ```
-3. Lance le déploiement :
-   ```bash
-   npm run deploy
-   ```
-   Cela construit le site et le pousse sur la branche `gh-pages`.
-4. Dans **Settings → Pages** du dépôt GitHub, sélectionne la branche
-   `gh-pages` comme source.
-5. Le site est dispo à : `https://<username>.github.io/iDayal/`
+iDayal est en ligne sur **https://idayal.com**.
 
-> Si tu choisis un autre nom de dépôt, mets à jour `base` dans
-> `vite.config.ts` (`base: '/<nom-du-depot>/'`).
+Le déploiement est automatique : chaque push sur la branche de production
+déclenche `.github/workflows/deploy.yml`, qui joue les tests, construit le
+site et le publie sur GitHub Pages.
+
+Trois points tiennent la configuration du domaine :
+
+- `public/CNAME` contient `idayal.com`. Vite le recopie tel quel dans `dist/`,
+  donc chaque déploiement le republie. **Ne pas le supprimer** : sans lui,
+  GitHub Pages peut perdre le domaine personnalisé au déploiement suivant et
+  le site retombe sur l'adresse `github.io`.
+- Dans **Settings → Pages**, le domaine personnalisé est `idayal.com` et
+  *Enforce HTTPS* est actif.
+- `base` vaut `'./'` dans `vite.config.ts` : les chemins sont relatifs, le
+  site fonctionne donc aussi bien à la racine d'un domaine que dans un
+  sous-chemin.
+
+### Une seule adresse, et c'est structurel
+
+Les tâches vivent dans `localStorage`, qui est **cloisonné par origine**. Deux
+adresses réellement servies, ce sont deux listes de tâches différentes pour la
+même personne, sans aucun moyen de les réunir. `idayal.com` est donc la seule
+origine qui sert l'application ; tout le reste redirige vers elle.
+
+> Conséquence lors d'un changement d'adresse : les données restées sur
+> l'ancienne origine ne suivent pas. Il faut les faire transiter par la
+> synchronisation (se connecter *avant* le changement, se reconnecter
+> *après*), et réinstaller la PWA depuis la nouvelle adresse.
 
 ## Installation sur iPhone
 
-1. Ouvre `https://<username>.github.io/iDayal/` dans **Safari** (pas Chrome).
+1. Ouvre `https://idayal.com` dans **Safari** (pas Chrome).
 2. Tape l'icône **Partager** (le carré avec une flèche).
 3. Choisis **« Ajouter à l'écran d'accueil »**.
 4. Tu obtiens une icône iDayal qui s'ouvre en plein écran, sans la barre
@@ -70,7 +81,7 @@ iDayal accepte un paramètre `?add=` dans l'URL : la tâche est créée dès
 l'ouverture, puis le paramètre est retiré de l'URL.
 
 ```
-https://<url-de-liDayal>/?add=rappeler%20le%20dentiste%20demain%20à%2010h
+https://idayal.com/?add=rappeler%20le%20dentiste%20demain%20à%2010h
 ```
 
 Ça permet de brancher un **raccourci iOS** et de noter une tâche à la voix
@@ -84,7 +95,7 @@ ou en un appui, sans naviguer dans l'app.
    - Question : `Quoi ?`
 3. Ajoute l'action **« Coder l'URL »** et passe-lui la *Réponse fournie*
 4. Ajoute l'action **« Texte »** avec :
-   `https://<url-de-liDayal>/?add=` suivi du résultat de *Coder l'URL*
+   `https://idayal.com/?add=` suivi du résultat de *Coder l'URL*
 5. Ajoute l'action **« Ouvrir les URL »** avec ce texte
 6. Nomme le raccourci **« Noter »** et enregistre
 
@@ -128,6 +139,7 @@ avec `scheduledDate` = demain 10:00, et son titre devient `appeler Marie`.
 ```
 iDayal/
 ├── public/
+│   ├── CNAME            # domaine personnalisé GitHub Pages
 │   ├── manifest.json
 │   ├── sw.js
 │   ├── icon-192.svg
