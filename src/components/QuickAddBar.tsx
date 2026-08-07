@@ -99,6 +99,30 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const localRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? localRef;
+  const blurTimer = useRef<number | undefined>(undefined);
+
+  /*
+   * Toucher un raccourci retire le focus du champ, ce qui ferait disparaître
+   * la rangée avant que le clic n'aboutisse.
+   *
+   * La première version bloquait le geste avec preventDefault sur pointerdown.
+   * Mauvaise idée : sur mobile cela supprime le clic qui suit sans toujours
+   * empêcher la perte de focus — le raccourci ne répondait plus et la rangée
+   * s'effaçait quand même.
+   *
+   * On laisse donc le focus partir, mais on retarde la disparition : le clic a
+   * le temps d'arriver, et le gestionnaire remet le champ au premier plan.
+   */
+  const hold = () => window.clearTimeout(blurTimer.current);
+
+  /** Agit, garde la rangée, et rend le clavier au champ pour continuer à taper. */
+  const act = (fn: () => void) => () => {
+    hold();
+    fn();
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => () => window.clearTimeout(blurTimer.current), []);
 
   // Suit le clavier iOS via visualViewport.
   useEffect(() => {
@@ -216,36 +240,31 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
         transition: 'bottom 0.12s ease-out',
       }}
     >
-      {/*
-        Raccourcis de date, pendant la saisie seulement.
-
-        onPointerDown/preventDefault est indispensable : sans lui, toucher une
-        commande retire le focus du champ, la rangée disparaît, et le geste
-        tombe dans le vide sans que rien ne signale d'erreur.
-      */}
+      {/* Raccourcis de date, pendant la saisie seulement. Voir `hold` plus haut
+          pour la raison du délai à la perte de focus. */}
       {showShortcuts && (
-        <div
-          onPointerDown={(e) => e.preventDefault()}
-          className="mb-2 flex flex-col items-start gap-1.5 animate-fade-in"
-        >
-          {/* Le jour retenu. Le toucher ouvre le calendrier ; la croix l'efface. */}
+        <div className="mb-2 flex flex-col items-start gap-1.5 animate-fade-in">
+          {/*
+            Le jour retenu, toujours actif : sans date explicite une tâche est
+            déjà celle du jour, donc « Aujourd'hui » est l'état par défaut, pas
+            une absence de choix. Le toucher ouvre le calendrier.
+          */}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setPicker((p) => (p === 'date' ? null : 'date'))}
-              className={`inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold transition-all active:scale-95 ${
-                effectiveScheduled
-                  ? 'bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)]'
-                  : 'bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev text-idayal-text dark:text-zinc-200 shadow-soft border border-idayal-border dark:border-idayal-border-dark'
-              }`}
+              onClick={() => {
+                hold();
+                setPicker((p) => (p === 'date' ? null : 'date'));
+              }}
+              className="inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold transition-all active:scale-95 bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)]"
             >
               <CalendarIcon size={17} />
               {effectiveScheduled ? dayPillLabel(effectiveScheduled) : "Aujourd'hui"}
             </button>
-            {effectiveScheduled && manualDate && (
+            {manualDate && (
               <button
                 type="button"
-                onClick={clearDate}
+                onClick={act(clearDate)}
                 aria-label="Retirer la date"
                 className="w-9 h-9 rounded-full bg-idayal-blue/90 text-white flex items-center justify-center flex-shrink-0 active:scale-90 transition-all shadow-soft"
               >
@@ -265,7 +284,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                   key={label}
                   arrow
                   active={chosenTime === label}
-                  onClick={() => setTimeOfDay(h, m)}
+                  onClick={act(() => setTimeOfDay(h, m))}
                 >
                   {label}
                 </GroupButton>
@@ -276,13 +295,16 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           {/* Décalages, à partir de l'heure retenue. */}
           <div className={groupShell}>
             {SHIFTS.map((s) => (
-              <GroupButton key={s.label} onClick={() => shiftBy(s.hours)}>
+              <GroupButton key={s.label} onClick={act(() => shiftBy(s.hours))}>
                 {s.label}
               </GroupButton>
             ))}
             <GroupButton
               active={picker === 'time'}
-              onClick={() => setPicker((p) => (p === 'time' ? null : 'time'))}
+              onClick={() => {
+                hold();
+                setPicker((p) => (p === 'time' ? null : 'time'));
+              }}
             >
               •••
             </GroupButton>
@@ -293,7 +315,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
       {/* Sélecteur natif : jour ou heure, selon ce qui a été demandé. */}
       {picker && (
         <div
-          onPointerDown={(e) => e.preventDefault()}
+          onPointerDown={hold}
           className="mb-2 flex items-center gap-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark px-3 py-2 animate-slide-in-up"
         >
           {picker === 'date' ? (
@@ -320,7 +342,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           )}
           <button
             type="button"
-            onClick={() => setPicker(null)}
+            onClick={act(() => setPicker(null))}
             className="text-xs text-idayal-text-secondary px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             Fermer
@@ -346,12 +368,17 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           onChange={(e) => setValue(e.target.value)}
           onPaste={handlePaste}
           onFocus={() => {
+            hold();
             setFocused(true);
             window.setTimeout(() => {
               inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
             }, 200);
           }}
-          onBlur={() => setFocused(false)}
+          /* Fenêtre volontaire : le temps qu'un tap sur un raccourci aboutisse. */
+          onBlur={() => {
+            hold();
+            blurTimer.current = window.setTimeout(() => setFocused(false), 250);
+          }}
           placeholder="Noter une tâche…"
           /* 16px minimum : en dessous, Safari iOS zoome la page à la mise au point. */
           className="flex-1 min-w-0 h-11 bg-transparent outline-none text-[16px] placeholder:text-idayal-text-muted text-idayal-text dark:text-zinc-100"
