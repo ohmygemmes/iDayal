@@ -11,15 +11,16 @@
  *   en priorité : leur nom contient une empreinte, donc un contenu donné ne
  *   change jamais d'URL.
  */
-const CACHE_NAME = 'idayal-cache-v2';
+const CACHE_NAME = 'idayal-cache-v3';
 
 const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.json',
-  './icon-192.svg',
-  './icon-512.svg',
-  './apple-touch-icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './apple-touch-icon.png',
+  './favicon.svg',
 ];
 
 self.addEventListener('install', (event) => {
