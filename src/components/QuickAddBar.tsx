@@ -8,21 +8,93 @@ interface Props {
   inputRef?: React.RefObject<HTMLInputElement>;
 }
 
-function formatDateChip(iso: string): string {
-  const hasTime = iso.length > 10;
-  const d = hasTime ? new Date(iso) : new Date(iso + 'T00:00:00');
-  return d.toLocaleString('fr-FR', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    ...(hasTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-  });
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Heures fixes proposées, posées telles quelles sur le jour retenu. */
+const FIXED_TIMES: Array<[number, number]> = [
+  [9, 0],
+  [12, 0],
+  [18, 0],
+];
+
+/** Décalages, appliqués à l'heure déjà retenue — pas à l'instant présent. */
+const SHIFTS: Array<{ label: string; hours: number }> = [
+  { label: '+1h', hours: 1 },
+  { label: '6h', hours: 6 },
+  { label: '24', hours: 24 },
+];
+
+/** Libellé du jour retenu : « Aujourd'hui », « Demain », sinon la date courte. */
+function dayPillLabel(iso: string): string {
+  const day = iso.slice(0, 10);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  let label: string;
+  if (day === toLocalISODate(today)) label = "Aujourd'hui";
+  else if (day === toLocalISODate(tomorrow)) label = 'Demain';
+  else
+    label = new Date(day + 'T00:00:00').toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+
+  const time = iso.length > 10 ? iso.slice(11, 16) : null;
+  return time ? `${label}, ${time}` : label;
 }
+
+const CalendarIcon = ({ size = 15 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 9h18M8 3v4M16 3v4" />
+  </svg>
+);
+
+/** Petite flèche au-dessus des heures fixes, comme repère de « poser à ». */
+const JumpArrow = () => (
+  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="opacity-30">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+/** Bouton d'une rangée groupée (heures fixes, décalages). */
+function GroupButton({
+  children,
+  onClick,
+  active,
+  arrow,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  active?: boolean;
+  arrow?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-0.5 px-3 h-11 rounded-full transition-all active:scale-95 ${
+        active
+          ? 'bg-idayal-blue text-white shadow-[0_2px_10px_rgba(59,125,216,0.35)]'
+          : 'text-idayal-text dark:text-zinc-200'
+      }`}
+    >
+      {arrow && <JumpArrow />}
+      <span className="tabular text-[15px] font-medium leading-none">{children}</span>
+    </button>
+  );
+}
+
+const groupShell =
+  'inline-flex items-center gap-0.5 p-1 rounded-full bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev shadow-soft border border-idayal-border dark:border-idayal-border-dark';
 
 export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [value, setValue] = useState('');
-  const [manualDate, setManualDate] = useState(''); // datetime-local string
-  const [showPicker, setShowPicker] = useState(false);
+  /** Date retenue à la main : 'YYYY-MM-DD' ou 'YYYY-MM-DDTHH:mm'. */
+  const [manualDate, setManualDate] = useState('');
+  const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [focused, setFocused] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const localRef = useRef<HTMLInputElement>(null);
@@ -50,13 +122,49 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     if (!text) return null;
     const { detectedDate } = parseFrenchDate(text);
     if (!detectedDate) return null;
-    const hasTime =
-      detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
+    const hasTime = detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
     return hasTime ? toLocalISODateTime(detectedDate) : toLocalISODate(detectedDate);
   }, [value]);
 
-  // Date effective : manuelle prioritaire, sinon détectée.
+  // Date effective : celle posée à la main prime sur celle lue dans le texte.
   const effectiveScheduled = manualDate || detectedPreview;
+  const chosenDay = effectiveScheduled ? effectiveScheduled.slice(0, 10) : null;
+  const chosenTime =
+    effectiveScheduled && effectiveScheduled.length > 10
+      ? effectiveScheduled.slice(11, 16)
+      : null;
+
+  /**
+   * Point de départ des décalages.
+   *
+   * C'est la règle qui compte : « 12h » puis « +1h » doit donner 13h, pas
+   * l'heure qu'il est plus une. On part donc de ce qui est déjà retenu.
+   * Un jour sans heure garde l'heure courante, faute de mieux ; sans rien,
+   * c'est maintenant.
+   */
+  const shiftBase = (): Date => {
+    if (effectiveScheduled && effectiveScheduled.length > 10)
+      return new Date(effectiveScheduled);
+    const now = new Date();
+    if (chosenDay) {
+      const d = new Date(chosenDay + 'T00:00:00');
+      d.setHours(now.getHours(), now.getMinutes(), 0, 0);
+      return d;
+    }
+    return now;
+  };
+
+  const shiftBy = (hours: number) =>
+    setManualDate(toLocalISODateTime(new Date(shiftBase().getTime() + hours * 3600_000)));
+
+  /** Poser une heure fixe garde le jour retenu ; sans jour, c'est aujourd'hui. */
+  const setTimeOfDay = (h: number, m: number) =>
+    setManualDate(`${chosenDay ?? toLocalISODate(new Date())}T${pad2(h)}:${pad2(m)}`);
+
+  const clearDate = () => {
+    setManualDate('');
+    setPicker(null);
+  };
 
   const addOne = (raw: string, forcedDate: string | null) => {
     const text = raw.trim();
@@ -76,7 +184,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     addOne(value, manualDate || null);
     setValue('');
     setManualDate('');
-    setShowPicker(false);
+    setPicker(null);
     inputRef.current?.focus();
   };
 
@@ -95,6 +203,8 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     inputRef.current?.focus();
   };
 
+  const showShortcuts = focused || Boolean(manualDate) || picker !== null;
+
   return (
     <div
       className="fixed left-1/2 -translate-x-1/2 w-full max-w-app z-20 px-3"
@@ -106,49 +216,114 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
         transition: 'bottom 0.12s ease-out',
       }}
     >
-      {/* Aperçu de la date détectée / sélectionnée */}
-      {effectiveScheduled && (
-        <div className="mb-2 flex justify-center">
-          <span className="inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue text-[12px] font-medium animate-fade-in shadow-soft border border-idayal-blue/15">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="5" width="18" height="16" rx="2" />
-              <path d="M3 9h18M8 3v4M16 3v4" />
-            </svg>
-            <span className="tabular">{formatDateChip(effectiveScheduled)}</span>
-            {manualDate && (
+      {/*
+        Raccourcis de date, pendant la saisie seulement.
+
+        onPointerDown/preventDefault est indispensable : sans lui, toucher une
+        commande retire le focus du champ, la rangée disparaît, et le geste
+        tombe dans le vide sans que rien ne signale d'erreur.
+      */}
+      {showShortcuts && (
+        <div
+          onPointerDown={(e) => e.preventDefault()}
+          className="mb-2 flex flex-col items-start gap-1.5 animate-fade-in"
+        >
+          {/* Le jour retenu. Le toucher ouvre le calendrier ; la croix l'efface. */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPicker((p) => (p === 'date' ? null : 'date'))}
+              className={`inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold transition-all active:scale-95 ${
+                effectiveScheduled
+                  ? 'bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)]'
+                  : 'bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev text-idayal-text dark:text-zinc-200 shadow-soft border border-idayal-border dark:border-idayal-border-dark'
+              }`}
+            >
+              <CalendarIcon size={17} />
+              {effectiveScheduled ? dayPillLabel(effectiveScheduled) : "Aujourd'hui"}
+            </button>
+            {effectiveScheduled && manualDate && (
               <button
                 type="button"
-                onClick={() => setManualDate('')}
+                onClick={clearDate}
                 aria-label="Retirer la date"
-                className="ml-0.5 -mr-1 w-4 h-4 rounded-full hover:bg-idayal-blue/15 flex items-center justify-center"
+                className="w-9 h-9 rounded-full bg-idayal-blue/90 text-white flex items-center justify-center flex-shrink-0 active:scale-90 transition-all shadow-soft"
               >
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
             )}
-          </span>
+          </div>
+
+          {/* Heures fixes. */}
+          <div className={groupShell}>
+            {FIXED_TIMES.map(([h, m]) => {
+              const label = `${pad2(h)}:${pad2(m)}`;
+              return (
+                <GroupButton
+                  key={label}
+                  arrow
+                  active={chosenTime === label}
+                  onClick={() => setTimeOfDay(h, m)}
+                >
+                  {label}
+                </GroupButton>
+              );
+            })}
+          </div>
+
+          {/* Décalages, à partir de l'heure retenue. */}
+          <div className={groupShell}>
+            {SHIFTS.map((s) => (
+              <GroupButton key={s.label} onClick={() => shiftBy(s.hours)}>
+                {s.label}
+              </GroupButton>
+            ))}
+            <GroupButton
+              active={picker === 'time'}
+              onClick={() => setPicker((p) => (p === 'time' ? null : 'time'))}
+            >
+              •••
+            </GroupButton>
+          </div>
         </div>
       )}
 
-      {/* Picker date/heure (toggle) */}
-      {showPicker && (
-        <div className="mb-2 flex items-center gap-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark px-3 py-2 animate-slide-in-up">
-          <input
-            type="datetime-local"
-            value={manualDate}
-            onChange={(e) => setManualDate(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-[14px] text-idayal-text dark:text-zinc-100 tabular"
-          />
+      {/* Sélecteur natif : jour ou heure, selon ce qui a été demandé. */}
+      {picker && (
+        <div
+          onPointerDown={(e) => e.preventDefault()}
+          className="mb-2 flex items-center gap-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark px-3 py-2 animate-slide-in-up"
+        >
+          {picker === 'date' ? (
+            <input
+              type="date"
+              value={chosenDay ?? ''}
+              onChange={(e) => {
+                if (!e.target.value) return clearDate();
+                setManualDate(chosenTime ? `${e.target.value}T${chosenTime}` : e.target.value);
+              }}
+              /* 16px minimum : en dessous, Safari iOS zoome à la mise au point. */
+              className="flex-1 bg-transparent outline-none text-[16px] text-idayal-text dark:text-zinc-100 tabular"
+            />
+          ) : (
+            <input
+              type="time"
+              value={chosenTime ?? ''}
+              onChange={(e) => {
+                const day = chosenDay ?? toLocalISODate(new Date());
+                setManualDate(e.target.value ? `${day}T${e.target.value}` : day);
+              }}
+              className="flex-1 bg-transparent outline-none text-[16px] text-idayal-text dark:text-zinc-100 tabular"
+            />
+          )}
           <button
             type="button"
-            onClick={() => {
-              setManualDate('');
-              setShowPicker(false);
-            }}
+            onClick={() => setPicker(null)}
             className="text-xs text-idayal-text-secondary px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
-            Annuler
+            Fermer
           </button>
         </div>
       )}
@@ -184,21 +359,6 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           autoComplete="off"
           autoCorrect="off"
         />
-        <button
-          type="button"
-          onClick={() => setShowPicker((v) => !v)}
-          aria-label="Choisir une date"
-          className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-all ${
-            showPicker || manualDate
-              ? 'bg-idayal-blue-soft text-idayal-blue dark:bg-idayal-blue/20'
-              : 'text-idayal-text-muted hover:text-idayal-blue hover:bg-zinc-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path d="M3 9h18M8 3v4M16 3v4" />
-          </svg>
-        </button>
         <button
           type="submit"
           aria-label="Ajouter la tâche"
