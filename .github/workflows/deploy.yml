@@ -3,7 +3,6 @@ name: Deploy iDayal to GitHub Pages
 on:
   push:
     branches:
-      - claude/create-idayal-pwa-5tImI
       - main
   workflow_dispatch:
 
