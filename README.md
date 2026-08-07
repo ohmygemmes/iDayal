@@ -4,7 +4,9 @@
 centrée sur le jour. Tout ce qui n'est pas fait dans la journée est
 automatiquement reporté au lendemain.
 
-- 100% côté client — aucune base de données, juste `localStorage`.
+- 100% côté client — pas de backend, les tâches vivent dans `localStorage`.
+- Synchronisation entre appareils **facultative** : sans configuration,
+  l'application est strictement locale et n'émet aucune requête.
 - Installable sur iPhone via Safari → « Ajouter à l'écran d'accueil ».
 - Fonctionne offline grâce à un service worker.
 - Détection automatique des dates en français dans le texte saisi.
@@ -14,7 +16,8 @@ automatiquement reporté au lendemain.
 - React 18 + TypeScript
 - Vite
 - Tailwind CSS
-- Service worker maison (cache-first)
+- Service worker maison : **réseau d'abord pour les navigations**, cache
+  d'abord pour les ressources empreintées (voir `public/sw.js`)
 
 ## Démarrage local
 
@@ -23,7 +26,7 @@ npm install
 npm run dev
 ```
 
-Ouvre l'URL affichée (`http://localhost:5173/iDayal/`) dans le navigateur.
+Ouvre l'URL affichée (`http://localhost:5173/`) dans le navigateur.
 
 ## Build de production
 
@@ -32,30 +35,42 @@ npm run build
 npm run preview
 ```
 
-## Déploiement GitHub Pages
+## Tests
 
-1. Crée un dépôt GitHub nommé exactement **`iDayal`** (le `base` dans
-   `vite.config.ts` est déjà `/iDayal/`).
-2. Pousse ton code sur la branche `main` :
-   ```bash
-   git remote add origin git@github.com:<username>/iDayal.git
-   git push -u origin main
-   ```
-3. Lance le déploiement :
-   ```bash
-   npm run deploy
-   ```
-   Cela construit le site et le pousse sur la branche `gh-pages`.
-4. Dans **Settings → Pages** du dépôt GitHub, sélectionne la branche
-   `gh-pages` comme source.
-5. Le site est dispo à : `https://<username>.github.io/iDayal/`
+```bash
+npm test
+```
 
-> Si tu choisis un autre nom de dépôt, mets à jour `base` dans
-> `vite.config.ts` (`base: '/<nom-du-depot>/'`).
+Le parseur de dates et l'arbitrage de synchronisation sont couverts. Le
+workflow de déploiement joue ces tests avant de construire : un échec bloque
+la mise en ligne.
+
+## Déploiement
+
+Le site est en ligne sur **https://ohmygemmes.github.io/iDayal/**.
+
+Le déploiement est **automatique et il n'y a rien à lancer à la main** :
+chaque push sur la branche de production déclenche
+`.github/workflows/deploy.yml`, qui installe les dépendances avec `npm ci`,
+joue les tests, construit le site et le publie sur GitHub Pages via
+`actions/deploy-pages`.
+
+Deux conséquences à connaître avant de toucher au dépôt :
+
+- **`npm ci` installe depuis `package-lock.json`, pas depuis `package.json`.**
+  Modifier l'un sans régénérer l'autre casse le déploiement.
+- Les identifiants de synchronisation sont fournis au build par les secrets
+  GitHub `VITE_SUPABASE_URL` et `VITE_SUPABASE_KEY`. **S'ils sont absents, le
+  build réussit quand même** et l'application se construit en mode purement
+  local, sans compte ni requête réseau. C'est voulu.
+
+`base` vaut `'./'` dans `vite.config.ts`. Les chemins étant relatifs, le même
+build fonctionne à la racine d'un domaine comme dans un sous-chemin — il n'y a
+rien à changer si l'adresse change.
 
 ## Installation sur iPhone
 
-1. Ouvre `https://<username>.github.io/iDayal/` dans **Safari** (pas Chrome).
+1. Ouvre `https://ohmygemmes.github.io/iDayal/` dans **Safari** (pas Chrome).
 2. Tape l'icône **Partager** (le carré avec une flèche).
 3. Choisis **« Ajouter à l'écran d'accueil »**.
 4. Tu obtiens une icône iDayal qui s'ouvre en plein écran, sans la barre
@@ -70,7 +85,7 @@ iDayal accepte un paramètre `?add=` dans l'URL : la tâche est créée dès
 l'ouverture, puis le paramètre est retiré de l'URL.
 
 ```
-https://<url-de-liDayal>/?add=rappeler%20le%20dentiste%20demain%20à%2010h
+https://ohmygemmes.github.io/iDayal/?add=rappeler%20le%20dentiste%20demain%20à%2010h
 ```
 
 Ça permet de brancher un **raccourci iOS** et de noter une tâche à la voix
@@ -84,7 +99,7 @@ ou en un appui, sans naviguer dans l'app.
    - Question : `Quoi ?`
 3. Ajoute l'action **« Coder l'URL »** et passe-lui la *Réponse fournie*
 4. Ajoute l'action **« Texte »** avec :
-   `https://<url-de-liDayal>/?add=` suivi du résultat de *Coder l'URL*
+   `https://ohmygemmes.github.io/iDayal/?add=` suivi du résultat de *Coder l'URL*
 5. Ajoute l'action **« Ouvrir les URL »** avec ce texte
 6. Nomme le raccourci **« Noter »** et enregistre
 
@@ -130,18 +145,23 @@ iDayal/
 ├── public/
 │   ├── manifest.json
 │   ├── sw.js
-│   ├── icon-192.svg
-│   ├── icon-512.svg
-│   └── apple-touch-icon.svg
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── icon-512-maskable.png
+│   ├── apple-touch-icon.png
+│   ├── favicon.svg
+│   └── favicon-32.png
 ├── src/
 │   ├── components/      # UI
-│   ├── hooks/           # useSwipeGesture
-│   ├── services/        # frenchDateParser, notificationService
+│   ├── hooks/           # useSwipeGesture, useCloudSync
+│   ├── services/        # frenchDateParser, syncDecision, cloudSync…
 │   ├── stores/          # useTaskStore (localStorage)
 │   ├── types/           # task.ts
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── index.css
+├── design/              # SVG maîtres du logo + exports magasins
+├── .github/workflows/   # deploy.yml
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
