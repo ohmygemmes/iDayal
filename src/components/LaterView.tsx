@@ -1,3 +1,4 @@
+import { toLocalISODate } from '../services/localDate';
 import { useMemo } from 'react';
 import type { Task } from '../types/task';
 import { TaskRow } from './TaskRow';
@@ -51,9 +52,9 @@ function groupTasks(tasks: Task[]): Group[] {
     else if (d < startNextMonth) ensure('this-month', 'Ce mois').items.push(t);
     else if (d < startMonthAfter) {
       const label = startNextMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-      ensure(`m-${startNextMonth.toISOString().slice(0, 7)}`, label).items.push(t);
+      ensure(`m-${toLocalISODate(startNextMonth).slice(0, 7)}`, label).items.push(t);
     } else {
-      const key = `m-${d.toISOString().slice(0, 7)}`;
+      const key = `m-${toLocalISODate(d).slice(0, 7)}`;
       const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
       ensure(key, label).items.push(t);
     }

@@ -1,3 +1,4 @@
+import { toLocalISODate } from './localDate';
 import type { Task } from '../types/task';
 
 const timers = new Set<number>();
@@ -34,7 +35,7 @@ function notify(title: string, body: string) {
 }
 
 function todayKey(d = new Date()): string {
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 
 interface ScheduleParams {

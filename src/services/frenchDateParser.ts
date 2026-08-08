@@ -71,6 +71,23 @@ interface Match {
   date: Date;
 }
 
+/**
+ * Une date exploitable par le reste de l'application.
+ *
+ * « dans 999999999 jours » produisait une date invalide, écrite telle quelle
+ * dans le stockage sous la forme `NaN-NaN-NaN` : la tâche restait affichée
+ * « INVALID DATE » pour toujours. Au-delà de l'an 9999, la date est valide mais
+ * son année tient sur cinq chiffres, ce que le format `YYYY-MM-DD` du stockage
+ * et les champs de date du navigateur ne savent pas relire.
+ *
+ * Rien de tout cela n'est une échéance : c'est du texte mal interprété.
+ */
+function isUsableDate(d: Date): boolean {
+  if (Number.isNaN(d.getTime())) return false;
+  const year = d.getFullYear();
+  return year >= 1900 && year <= 9999;
+}
+
 /** Recherche un motif et renvoie le premier match avec sa position dans le texte original. */
 function findMatch(
   lowered: string,
@@ -82,7 +99,7 @@ function findMatch(
   const m = regex.exec(lowered);
   if (!m) return null;
   const date = builder(m, now);
-  if (!date) return null;
+  if (!date || !isUsableDate(date)) return null;
   return { index: m.index, length: m[0].length, date };
 }
 

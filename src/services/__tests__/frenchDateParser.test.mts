@@ -85,6 +85,17 @@ t('course demain 12', 'course 12', [5, 8, 2026, 0, 0]);
 t('course demain 12h', 'course', [5, 8, 2026, 12, 0]);
 t('course demain 12:30', 'course', [5, 8, 2026, 12, 30]);
 
+console.log("\n--- Une date inexploitable n'est pas une date ---");
+/*
+ * « dans 999999999 jours » écrivait `NaN-NaN-NaN` dans le stockage : la tâche
+ * affichait « INVALID DATE » et le restait. Au-delà de l'an 9999, l'année tient
+ * sur cinq chiffres, que le format de stockage ne sait pas relire. Dans les
+ * deux cas le texte est laissé intact plutôt que mutilé pour rien.
+ */
+t('archiver dans 999999999 jours', 'archiver dans 999999999 jours', null);
+t('archiver dans 10000000 jours', 'archiver dans 10000000 jours', null);
+t('archiver dans 1000 jours', 'archiver', [30, 4, 2029, 0, 0]);
+
 console.log('\n--- Les autres formats ne doivent pas casser ---');
 t('course demain', 'course', [5, 8, 2026, 0, 0]);
 t('rdv mardi 14h', 'rdv', [11, 8, 2026, 14, 0]);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Note, Settings, SubTask, Task } from '../types/task';
-import { toLocalISODate } from '../services/localDate';
+import { toLocalISODate, toLocalISODateTime } from '../services/localDate';
 
 const TASKS_KEY = 'idayal:tasks:v1';
 const SETTINGS_KEY = 'idayal:settings:v1';
@@ -239,7 +239,7 @@ export function useTaskStore(): TaskStore {
           );
         }
         return prev.map((t) =>
-          t.id === id ? { ...t, completedDate: wasDone ? null : new Date().toISOString() } : t
+          t.id === id ? { ...t, completedDate: wasDone ? null : toLocalISODateTime(new Date()) } : t
         );
       });
     },
@@ -336,7 +336,7 @@ export function useTaskStore(): TaskStore {
           t.id === id
             ? {
                 ...t,
-                completedDate: new Date().toISOString(),
+                completedDate: toLocalISODateTime(new Date()),
                 note: keepNote ? t.note : '',
               }
             : t
