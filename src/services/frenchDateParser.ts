@@ -1,6 +1,20 @@
 export interface ParsedDate {
   cleanTitle: string;
   detectedDate: Date | null;
+  /**
+   * Une heure a-t-elle été écrite ?
+   *
+   * On le déduisait de la valeur : « minuit pile, donc pas d'heure ». C'était
+   * faux pour « demain 0h », dont l'heure disparaissait — et sans heure,
+   * aucun rappel n'est programmé. Seul le texte sait s'il en portait une.
+   */
+  hasTime: boolean;
+}
+
+/** Date construite par un motif, avec le fait qu'une heure ait été lue ou non. */
+interface Built {
+  date: Date;
+  hasTime: boolean;
 }
 
 const MONTHS: Record<string, number> = {
@@ -69,6 +83,7 @@ interface Match {
   index: number;
   length: number;
   date: Date;
+  hasTime: boolean;
 }
 
 /**
@@ -92,15 +107,15 @@ function isUsableDate(d: Date): boolean {
 function findMatch(
   lowered: string,
   regex: RegExp,
-  builder: (m: RegExpExecArray, now: Date) => Date | null,
+  builder: (m: RegExpExecArray, now: Date) => Built | null,
   now: Date
 ): Match | null {
   regex.lastIndex = 0;
   const m = regex.exec(lowered);
   if (!m) return null;
-  const date = builder(m, now);
-  if (!date || !isUsableDate(date)) return null;
-  return { index: m.index, length: m[0].length, date };
+  const built = builder(m, now);
+  if (!built || !isUsableDate(built.date)) return null;
+  return { index: m.index, length: m[0].length, date: built.date, hasTime: built.hasTime };
 }
 
 export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDate {
@@ -122,12 +137,12 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
    */
   const TIME = '(?:\\s+(?:[aà]\\s+)?(\\d{1,2})[h:](\\d{2})?)?';
 
-  function buildTime(base: Date, hStr?: string, mStr?: string): Date | null {
-    if (!hStr) return base;
+  function buildTime(base: Date, hStr?: string, mStr?: string): Built | null {
+    if (!hStr) return { date: base, hasTime: false };
     const hour = parseInt(hStr, 10);
     const minute = mStr ? parseInt(mStr, 10) : 0;
     if (hour > 23 || minute > 59) return null;
-    return applyTime(base, hour, minute);
+    return { date: applyTime(base, hour, minute), hasTime: true };
   }
 
   /**
@@ -141,11 +156,11 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
    * Ne concerne que les heures nues : dès qu'un jour est nommé (« demain 4h »,
    * « le 15 avril à 4h »), c'est ce jour qui commande.
    */
-  function buildTimeToday(n: Date, hStr?: string, mStr?: string): Date | null {
-    const dt = buildTime(startOfDay(n), hStr, mStr);
-    if (!dt) return null;
-    if (dt.getTime() < n.getTime()) dt.setDate(dt.getDate() + 1);
-    return dt;
+  function buildTimeToday(n: Date, hStr?: string, mStr?: string): Built | null {
+    const built = buildTime(startOfDay(n), hStr, mStr);
+    if (!built) return null;
+    if (built.date.getTime() < n.getTime()) built.date.setDate(built.date.getDate() + 1);
+    return built;
   }
 
   /**
@@ -158,21 +173,36 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
     hStr: string | undefined,
     mStr: string | undefined,
     n: Date
-  ): Date | null {
-    const year = n.getFullYear();
-    const base = new Date(year, month, day, 0, 0, 0, 0);
-    // Rejette les jours qui n'existent pas (31 février bascule sur mars).
-    if (base.getMonth() !== month || base.getDate() !== day) return null;
-    const dt = buildTime(base, hStr, mStr);
-    if (!dt) return null;
-    if (dt.getTime() < startOfDay(n).getTime()) dt.setFullYear(year + 1);
-    return dt;
+  ): Built | null {
+    const startToday = startOfDay(n).getTime();
+
+    /*
+     * On cherche la prochaine occurrence réelle, année par année.
+     *
+     * L'année était choisie APRÈS avoir validé le jour, ce qui cassait le
+     * 29 février deux fois : introuvable depuis 2026 (année non bissextile,
+     * abandon sans essayer 2028), et depuis mars 2028 le décalage d'un an
+     * débordait silencieusement sur le 1er mars 2029.
+     *
+     * Huit ans suffisent : c'est le plus grand écart possible entre deux
+     * années bissextiles, au passage d'un siècle non divisible par 400.
+     */
+    for (let ahead = 0; ahead <= 8; ahead++) {
+      const base = new Date(n.getFullYear() + ahead, month, day, 0, 0, 0, 0);
+      // Un jour qui n'existe pas dans cette année-là (30 février, 31 avril).
+      if (base.getMonth() !== month || base.getDate() !== day) continue;
+      const built = buildTime(base, hStr, mStr);
+      // Une heure impossible fait tomber le motif entier, pas seulement l'année.
+      if (!built) return null;
+      if (built.date.getTime() >= startToday) return built;
+    }
+    return null;
   }
 
   // On essaie les motifs du plus spécifique au moins spécifique.
   const builders: Array<{
     regex: RegExp;
-    build: (m: RegExpExecArray, now: Date) => Date | null;
+    build: (m: RegExpExecArray, now: Date) => Built | null;
   }> = [
     // "[le] 15 avril [à] [12[h[30]]]" — le « le » est facultatif : on écrit
     // aussi bien « rdv 3 août » que « rdv le 3 août ».
@@ -230,7 +260,7 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
         const x = parseInt(m[1], 10);
         const d = startOfDay(n);
         d.setDate(d.getDate() + x);
-        return d;
+        return { date: d, hasTime: false };
       },
     },
     // "dans 2 semaines"
@@ -240,7 +270,7 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
         const x = parseInt(m[1], 10);
         const d = startOfDay(n);
         d.setDate(d.getDate() + x * 7);
-        return d;
+        return { date: d, hasTime: false };
       },
     },
     // "à 14h30" / "a 14h" — le « h » (ou « : ») est exigé ici, sinon « a 3 »
@@ -266,9 +296,9 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   for (const { regex, build } of builders) {
     const match = findMatch(lowered, regex, build, now);
     if (match) {
-      return { cleanTitle: strip(original, match), detectedDate: match.date };
+      return { cleanTitle: strip(original, match), detectedDate: match.date, hasTime: match.hasTime };
     }
   }
 
-  return { cleanTitle: original.trim(), detectedDate: null };
+  return { cleanTitle: original.trim(), detectedDate: null, hasTime: false };
 }

@@ -21,11 +21,16 @@ function fmt(d: Date | null): string {
 function t(
   input: string,
   expectedTitle: string,
-  expected: null | [number, number, number, number, number]
+  expected: null | [number, number, number, number, number],
+  /** Une heure a-t-elle été écrite ? Par défaut, déduit de l'attendu. */
+  expectedHasTime?: boolean
 ) {
   const r = parseFrenchDate(input, NOW);
   const d = r.detectedDate;
   let ok = r.cleanTitle === expectedTitle;
+  const wantHasTime =
+    expectedHasTime ?? (expected === null ? false : expected[3] !== 0 || expected[4] !== 0);
+  ok = ok && r.hasTime === wantHasTime;
   if (expected === null) {
     ok = ok && d === null;
   } else {
@@ -122,14 +127,42 @@ t('test demain 4h', 'test', [5, 8, 2026, 4, 0]);
 t('test le 20 aout a 4h', 'test', [20, 8, 2026, 4, 0]);
 t('apres-demain 8h', '', [6, 8, 2026, 8, 0]);
 
+console.log("\n--- Minuit écrit est une heure, l'absence d'heure n'en est pas une ---");
+/*
+ * « minuit pile » et « pas d'heure » étaient indistinguables : la valeur seule
+ * servait de test. « demain 0h » perdait donc son heure, et une tâche sans
+ * heure ne déclenche aucun rappel. Le parseur dit maintenant ce que le texte
+ * portait.
+ */
+t('fete demain 0h', 'fete', [5, 8, 2026, 0, 0], true);
+t('fete demain 0:00', 'fete', [5, 8, 2026, 0, 0], true);
+t('fete demain', 'fete', [5, 8, 2026, 0, 0], false);
+t('fete le 20 aout a 0h', 'fete', [20, 8, 2026, 0, 0], true);
+t('fete dans 3 jours', 'fete', [7, 8, 2026, 0, 0], false);
+
 console.log('\n--- Pas de fausse détection ---');
 t('acheter 2 kg de tomates', 'acheter 2 kg de tomates', null);
 t('simple course', 'simple course', null);
 t('appeler le plombier', 'appeler le plombier', null);
 t('relire le chapitre 3', 'relire le chapitre 3', null);
 t('30 fevrier', '30 fevrier', null); // date inexistante → refusée
+t('31 avril', '31 avril', null); // avril n'a que 30 jours
 t('acheter 3 mais', 'acheter 3 mais', null); // « mais » n'est pas « mai »
 
+
+console.log('\n--- Le 29 février existe une année sur quatre ---');
+/*
+ * L'année était choisie après avoir validé le jour : « 29 février » était
+ * introuvable depuis 2026 (année non bissextile, abandon sans essayer 2028),
+ * et depuis mars 2028 le décalage d'un an débordait sur le 1er mars 2029.
+ * On cherche maintenant la prochaine occurrence réelle.
+ */
+t('anniversaire 29 fevrier', 'anniversaire', [29, 2, 2028, 0, 0]);
+t('anniversaire le 29 fevrier a 10h', 'anniversaire', [29, 2, 2028, 10, 0]);
+// Une date qui n'existe aucune année reste refusée.
+t('reunion 31 avril', 'reunion 31 avril', null);
+// Une heure impossible fait tomber le motif, sans partir chercher une autre année.
+t('apero le 15 avril a 25h', 'apero le 15 avril a 25h', null);
 
 console.log('\n--- Sans accents, comme on tape vraiment ---');
 t('dentiste 20 aout a 14h30', 'dentiste', [20, 8, 2026, 14, 30]);

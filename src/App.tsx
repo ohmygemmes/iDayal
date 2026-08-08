@@ -28,9 +28,14 @@ function applyTheme(mode: 'system' | 'light' | 'dark') {
   root.classList.toggle('dark', dark);
 }
 
-/** Convertit une date détectée en chaîne stockable (avec ou sans heure). */
-function toStored(d: Date): string {
-  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0;
+/**
+ * Convertit une date détectée en chaîne stockable.
+ *
+ * `hasTime` vient du parseur, qui sait si le texte portait une heure. Le
+ * déduire de la valeur revenait à confondre « minuit pile » avec « pas
+ * d'heure », et « demain 0h » perdait la sienne — donc son rappel.
+ */
+function toStored(d: Date, hasTime: boolean): string {
   return hasTime ? toLocalISODateTime(d) : toLocalISODate(d);
 }
 
@@ -99,8 +104,8 @@ export default function App() {
       .map((l) => l.trim())
       .filter(Boolean);
     lines.forEach((line) => {
-      const { cleanTitle, detectedDate } = parseFrenchDate(line);
-      addTask(cleanTitle || line, detectedDate ? toStored(detectedDate) : null);
+      const { cleanTitle, detectedDate, hasTime } = parseFrenchDate(line);
+      addTask(cleanTitle || line, detectedDate ? toStored(detectedDate, hasTime) : null);
     });
     // On nettoie l'URL pour ne pas re-créer la tâche au rechargement.
     const url = new URL(window.location.href);

@@ -93,6 +93,13 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [value, setValue] = useState('');
   /** Date retenue à la main : 'YYYY-MM-DD' ou 'YYYY-MM-DDTHH:mm'. */
   const [manualDate, setManualDate] = useState('');
+  /**
+   * Date lue dans le texte que l'utilisateur a explicitement écartée.
+   *
+   * On retient la valeur, pas un simple drapeau : écarter « mardi » ne doit
+   * pas masquer la date suivante si la phrase est réécrite en « mercredi ».
+   */
+  const [ignoredDetected, setIgnoredDetected] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const localRef = useRef<HTMLInputElement>(null);
@@ -173,14 +180,15 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const detectedPreview = useMemo(() => {
     const text = value.trim();
     if (!text) return null;
-    const { detectedDate } = parseFrenchDate(text);
+    const { detectedDate, hasTime } = parseFrenchDate(text);
     if (!detectedDate) return null;
-    const hasTime = detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
     return hasTime ? toLocalISODateTime(detectedDate) : toLocalISODate(detectedDate);
   }, [value]);
 
-  // Date effective : celle posée à la main prime sur celle lue dans le texte.
-  const effectiveScheduled = manualDate || detectedPreview;
+  // Date effective : celle posée à la main prime sur celle lue dans le texte,
+  // et une date lue mais écartée ne compte pas.
+  const detected = detectedPreview && detectedPreview !== ignoredDetected ? detectedPreview : null;
+  const effectiveScheduled = manualDate || detected;
   const chosenDay = effectiveScheduled ? effectiveScheduled.slice(0, 10) : null;
   const chosenTime =
     effectiveScheduled && effectiveScheduled.length > 10
@@ -196,27 +204,39 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const setTimeOfDay = (h: number, m: number) =>
     setManualDate(atTimeOfDay(effectiveScheduled ?? '', h, m, new Date()));
 
-  /** Retire le choix manuel : la barre revient à ce que dit le texte, sinon à aujourd'hui. */
-  const clearDate = () => setManualDate('');
-
-  const addOne = (raw: string, forcedDate: string | null) => {
-    const text = raw.trim();
-    if (!text) return;
-    const { cleanTitle, detectedDate } = parseFrenchDate(text);
-    const title = cleanTitle || text;
-    let scheduled: string | null = forcedDate;
-    if (!scheduled && detectedDate) {
-      const hasTime = detectedDate.getHours() !== 0 || detectedDate.getMinutes() !== 0;
-      scheduled = hasTime ? toLocalISODateTime(detectedDate) : toLocalISODate(detectedDate);
-    }
-    onAdd(title, scheduled);
+  /**
+   * Retire la date, d'où qu'elle vienne.
+   *
+   * La croix n'existait que pour une date posée à la main : une date devinée
+   * dans la phrase ne pouvait s'enlever qu'en réécrivant celle-ci. Écarter la
+   * date lue est donc mémorisé, le temps que le texte change.
+   */
+  const clearDate = () => {
+    setManualDate('');
+    setIgnoredDetected(detectedPreview);
   };
 
   const submit = () => {
-    if (!value.trim()) return;
-    addOne(value, manualDate || null);
+    const text = value.trim();
+    if (!text) return;
+
+    /*
+     * On enregistre ce que la barre montre, sans re-déduire quoi que ce soit.
+     * L'enregistrement reparsait le texte et réappliquait la date lue même
+     * après un clic sur la croix : la date revenait, et le mot avait quand
+     * même disparu du titre.
+     *
+     * Quand la date lue est écartée, le texte reste entier — sinon on perdrait
+     * à la fois la date et le mot qui l'avait déclenchée. « reunion mardi »
+     * reste « reunion mardi ».
+     */
+    const dismissed = !manualDate && detectedPreview !== null && detected === null;
+    const { cleanTitle } = parseFrenchDate(text);
+    onAdd(dismissed ? text : cleanTitle || text, effectiveScheduled || null);
+
     setValue('');
     setManualDate('');
+    setIgnoredDetected(null);
     inputRef.current?.focus();
   };
 
@@ -286,7 +306,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent border-0 p-0"
               />
             </div>
-            {manualDate && (
+            {effectiveScheduled && (
               <button
                 type="button"
                 onClick={act(clearDate)}
