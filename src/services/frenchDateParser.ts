@@ -131,6 +131,24 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   }
 
   /**
+   * Heure seule, sans jour précisé : « 4h », « à 18h30 ».
+   *
+   * Si l'heure est déjà passée, elle désigne demain. Taper « 4h » à 6h27 ne
+   * veut pas dire quatre heures ce matin — c'est déjà fait — et poser la tâche
+   * là la fait naître en retard. Même raisonnement que « 6 janvier » en août,
+   * qui vise l'année suivante.
+   *
+   * Ne concerne que les heures nues : dès qu'un jour est nommé (« demain 4h »,
+   * « le 15 avril à 4h »), c'est ce jour qui commande.
+   */
+  function buildTimeToday(n: Date, hStr?: string, mStr?: string): Date | null {
+    const dt = buildTime(startOfDay(n), hStr, mStr);
+    if (!dt) return null;
+    if (dt.getTime() < n.getTime()) dt.setDate(dt.getDate() + 1);
+    return dt;
+  }
+
+  /**
    * Construit une date jour + mois. Sans année précisée, si la date est déjà
    * passée on vise l'année suivante — « 6 janvier » en août veut dire l'an prochain.
    */
@@ -230,18 +248,18 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
     // Pas de \b avant « à » : ce n'est pas un caractère de mot.
     {
       regex: /(?:^|\s)[aà]\s+(\d{1,2})[h:](\d{2})?/i,
-      build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
+      build: (m, n) => buildTimeToday(n, m[1], m[2]),
     },
     // "à 14" — heure nue tolérée uniquement avec le « à » accentué, qui est
     // une intention plus explicite.
     {
       regex: /(?:^|\s)à\s+(\d{1,2})\b/i,
-      build: (m, n) => buildTime(startOfDay(n), m[1], undefined),
+      build: (m, n) => buildTimeToday(n, m[1], undefined),
     },
     // "14h30" / "14h" / "14:30" — sans « à », le séparateur horaire est requis.
     {
       regex: /\b(\d{1,2})[h:](\d{2})?\b/i,
-      build: (m, n) => buildTime(startOfDay(n), m[1], m[2]),
+      build: (m, n) => buildTimeToday(n, m[1], m[2]),
     },
   ];
 

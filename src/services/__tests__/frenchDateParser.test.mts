@@ -102,8 +102,24 @@ t('rdv mardi 14h', 'rdv', [11, 8, 2026, 14, 0]);
 t('rdv lundi prochain', 'rdv', [17, 8, 2026, 0, 0]);
 t('X dans 3 jours', 'X', [7, 8, 2026, 0, 0]);
 t('X dans 2 semaines', 'X', [18, 8, 2026, 0, 0]);
-t('appel a 9h', 'appel', [4, 8, 2026, 9, 0]);
-t('appel 14h30', 'appel', [4, 8, 2026, 14, 30]);
+t('appel a 9h', 'appel', [5, 8, 2026, 9, 0]); // 9h est passé à 10h → demain
+t('appel 14h30', 'appel', [4, 8, 2026, 14, 30]); // 14h30 est à venir → aujourd'hui
+
+console.log("\n--- Une heure déjà passée désigne demain ---");
+/*
+ * Signalé : à 6h27, taper « Test 4h » posait la tâche à 4h le matin même,
+ * donc déjà en retard à la seconde où elle est créée. Une heure nue déjà
+ * écoulée ne peut désigner qu'aujourd'hui+1.
+ */
+t('test 4h', 'test', [5, 8, 2026, 4, 0]);          // 4h passé → demain
+t('test 9h59', 'test', [5, 8, 2026, 9, 59]);       // une minute trop tard → demain
+t('test 10h01', 'test', [4, 8, 2026, 10, 1]);      // une minute d'avance → aujourd'hui
+t('test 23h', 'test', [4, 8, 2026, 23, 0]);        // ce soir
+t('test a 4h', 'test', [5, 8, 2026, 4, 0]);        // avec « a »
+t('test 4:00', 'test', [5, 8, 2026, 4, 0]);        // avec deux-points
+// Un jour nommé commande : pas de bascule, même si l'heure est passée.
+t('test demain 4h', 'test', [5, 8, 2026, 4, 0]);
+t('test le 20 aout a 4h', 'test', [20, 8, 2026, 4, 0]);
 t('apres-demain 8h', '', [6, 8, 2026, 8, 0]);
 
 console.log('\n--- Pas de fausse détection ---');
@@ -118,7 +134,7 @@ t('acheter 3 mais', 'acheter 3 mais', null); // « mais » n'est pas « mai »
 console.log('\n--- Sans accents, comme on tape vraiment ---');
 t('dentiste 20 aout a 14h30', 'dentiste', [20, 8, 2026, 14, 30]);
 t('paiement le 15 septembre a 10h', 'paiement', [15, 9, 2026, 10, 0]);
-t('appel a 9h', 'appel', [4, 8, 2026, 9, 0]);
+t('appel a 9h', 'appel', [5, 8, 2026, 9, 0]); // 9h est passé à 10h → demain
 t('apres-demain 8h', '', [6, 8, 2026, 8, 0]);
 t('apres demain', '', [6, 8, 2026, 0, 0]);
 t('course demain a 12h', 'course', [5, 8, 2026, 12, 0]);

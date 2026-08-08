@@ -47,8 +47,21 @@ export function shiftBy(scheduled: Scheduled, hours: number, now: Date): string 
   return toLocalISODateTime(d);
 }
 
-/** Pose une heure fixe sur le jour retenu ; sans jour retenu, c'est aujourd'hui. */
+/**
+ * Pose une heure fixe sur le jour retenu.
+ *
+ * Sans jour retenu, l'heure vaut pour aujourd'hui — sauf si elle est déjà
+ * passée, auquel cause elle désigne demain : toucher « 09:00 » à 22h40 ne veut
+ * pas dire ce matin, et poser la tâche là la fait naître en retard.
+ *
+ * Un jour explicitement choisi, lui, commande : « Demain » puis « 09:00 » reste
+ * demain matin, et rien ne bascule.
+ */
 export function atTimeOfDay(scheduled: Scheduled, h: number, m: number, now: Date): string {
-  const day = scheduled ? scheduled.slice(0, 10) : toLocalISODate(now);
-  return `${day}T${pad2(h)}:${pad2(m)}`;
+  if (scheduled) return `${scheduled.slice(0, 10)}T${pad2(h)}:${pad2(m)}`;
+
+  const d = new Date(now.getTime());
+  d.setHours(h, m, 0, 0);
+  if (d.getTime() < now.getTime()) d.setDate(d.getDate() + 1);
+  return toLocalISODateTime(d);
 }

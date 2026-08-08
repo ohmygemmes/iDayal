@@ -58,5 +58,22 @@ t('garde le jour retenu', '2026-08-20T09:00', atTimeOfDay('2026-08-20', 9, 0, le
 t('remplace l’heure déjà posée', '2026-08-20T18:00', atTimeOfDay('2026-08-20T09:00', 18, 0, le8aout()));
 t('sans jour retenu, c’est aujourd’hui', '2026-08-08T12:00', atTimeOfDay('', 12, 0, le8aout()));
 
+console.log('\n--- Une heure déjà passée désigne demain ---');
+/*
+ * Signalé : poser une heure écoulée fabriquait une tâche en retard à la
+ * seconde où elle était créée. Sans jour retenu, une heure passée ne peut
+ * désigner que le lendemain — mais un jour explicitement choisi commande.
+ */
+t('09:00 à 22h40 → demain', '2026-08-09T09:00', atTimeOfDay('', 9, 0, le8aout(22, 40)));
+t('18:00 à 22h40 → demain', '2026-08-09T18:00', atTimeOfDay('', 18, 0, le8aout(22, 40)));
+t('18:00 à 10h → ce soir', '2026-08-08T18:00', atTimeOfDay('', 18, 0, le8aout(10, 0)));
+t('une minute trop tard → demain', '2026-08-09T09:00', atTimeOfDay('', 9, 0, le8aout(9, 1)));
+t('une minute d’avance → aujourd’hui', '2026-08-08T09:00', atTimeOfDay('', 9, 0, le8aout(8, 59)));
+t(
+  'un jour choisi commande, même passé',
+  '2026-08-08T09:00',
+  atTimeOfDay('2026-08-08', 9, 0, le8aout(22, 40))
+);
+
 console.log(`\n${pass} réussis, ${fail} échoués`);
 if (fail > 0) process.exit(1);
