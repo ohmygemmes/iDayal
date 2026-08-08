@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { isNativeShell } from './services/platform';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -9,8 +10,20 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
-// Enregistrement du service worker (uniquement en prod, pour ne pas perturber le HMR).
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+/*
+ * Enregistrement du service worker.
+ *
+ * Uniquement en production, pour ne pas perturber le rechargement à chaud —
+ * et jamais dans la coque native.
+ *
+ * Dans l'application iOS les fichiers sont déjà sur l'appareil : le service
+ * worker n'apporterait aucun hors-ligne qui n'existe pas déjà. Il ajouterait
+ * en revanche un cache par-dessus des fichiers locaux, et c'est un vrai
+ * risque : après une mise à jour par l'App Store, le contenu du paquet est
+ * remplacé mais le cache, lui, survit. L'application se relancerait sur
+ * l'ancienne version, sans réseau pour l'en sortir.
+ */
+if ('serviceWorker' in navigator && import.meta.env.PROD && !isNativeShell()) {
   /*
    * Recharger quand une nouvelle version prend la main permet de ne pas rester
    * bloqué sur du code périmé.
