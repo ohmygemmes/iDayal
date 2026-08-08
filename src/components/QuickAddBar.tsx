@@ -94,7 +94,6 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const [value, setValue] = useState('');
   /** Date retenue à la main : 'YYYY-MM-DD' ou 'YYYY-MM-DDTHH:mm'. */
   const [manualDate, setManualDate] = useState('');
-  const [picker, setPicker] = useState<'date' | 'time' | null>(null);
   const [focused, setFocused] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const localRef = useRef<HTMLInputElement>(null);
@@ -120,6 +119,21 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     hold();
     fn();
     inputRef.current?.focus();
+  };
+
+  /*
+   * Les sélecteurs natifs prennent le focus à la place du champ de saisie.
+   * Sans ces deux gestionnaires, la rangée s'effacerait derrière le calendrier
+   * pendant qu'il est ouvert. On ne rend donc pas le clavier ici : cela
+   * refermerait le sélecteur aussitôt.
+   */
+  const holdOpen = () => {
+    hold();
+    setFocused(true);
+  };
+  const releaseSoon = () => {
+    hold();
+    blurTimer.current = window.setTimeout(() => setFocused(false), 250);
   };
 
   useEffect(() => () => window.clearTimeout(blurTimer.current), []);
@@ -185,10 +199,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const setTimeOfDay = (h: number, m: number) =>
     setManualDate(`${chosenDay ?? toLocalISODate(new Date())}T${pad2(h)}:${pad2(m)}`);
 
-  const clearDate = () => {
-    setManualDate('');
-    setPicker(null);
-  };
+  const clearDate = () => setManualDate('');
 
   const addOne = (raw: string, forcedDate: string | null) => {
     const text = raw.trim();
@@ -208,7 +219,6 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     addOne(value, manualDate || null);
     setValue('');
     setManualDate('');
-    setPicker(null);
     inputRef.current?.focus();
   };
 
@@ -227,7 +237,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     inputRef.current?.focus();
   };
 
-  const showShortcuts = focused || Boolean(manualDate) || picker !== null;
+  const showShortcuts = focused || Boolean(manualDate);
 
   return (
     <div
@@ -250,17 +260,35 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
             une absence de choix. Le toucher ouvre le calendrier.
           */}
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                hold();
-                setPicker((p) => (p === 'date' ? null : 'date'));
-              }}
-              className="inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold transition-all active:scale-95 bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)]"
-            >
+            {/*
+              Le champ de date est posé par-dessus la pastille, invisible.
+              Toucher la pastille, c'est donc toucher le champ : le calendrier
+              du système s'ouvre du premier coup.
+
+              Le champ était auparavant affiché dans une rangée à part. Un
+              `input[type=date]` s'y montrait vide, et il fallait le toucher à
+              son tour pour voir enfin le calendrier — deux gestes pour un.
+            */}
+            <div className="relative inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)] active:scale-95 transition-transform">
               <CalendarIcon size={17} />
               {effectiveScheduled ? dayPillLabel(effectiveScheduled) : "Aujourd'hui"}
-            </button>
+              <input
+                type="date"
+                aria-label="Choisir le jour"
+                /* Jamais vide : le calendrier doit s'ouvrir sur le bon mois. */
+                value={chosenDay ?? toLocalISODate(new Date())}
+                onFocus={holdOpen}
+                onBlur={releaseSoon}
+                onChange={(e) => {
+                  hold();
+                  if (!e.target.value) return;
+                  setManualDate(
+                    chosenTime ? `${e.target.value}T${chosenTime}` : e.target.value
+                  );
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent border-0 p-0"
+              />
+            </div>
             {manualDate && (
               <button
                 type="button"
@@ -299,54 +327,24 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                 {s.label}
               </GroupButton>
             ))}
-            <GroupButton
-              active={picker === 'time'}
-              onClick={() => {
-                hold();
-                setPicker((p) => (p === 'time' ? null : 'time'));
-              }}
-            >
-              •••
-            </GroupButton>
+            {/* Même principe pour l'heure libre : le champ recouvre le bouton. */}
+            <div className="relative flex flex-col items-center justify-center px-3 h-11 rounded-full text-idayal-text dark:text-zinc-200 active:scale-95 transition-transform">
+              <span className="tabular text-[15px] font-medium leading-none">•••</span>
+              <input
+                type="time"
+                aria-label="Choisir l'heure"
+                value={chosenTime ?? ''}
+                onFocus={holdOpen}
+                onBlur={releaseSoon}
+                onChange={(e) => {
+                  hold();
+                  const day = chosenDay ?? toLocalISODate(new Date());
+                  setManualDate(e.target.value ? `${day}T${e.target.value}` : day);
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent border-0 p-0"
+              />
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Sélecteur natif : jour ou heure, selon ce qui a été demandé. */}
-      {picker && (
-        <div
-          onPointerDown={hold}
-          className="mb-2 flex items-center gap-2 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-bar shadow-elev border border-idayal-border dark:border-idayal-border-dark px-3 py-2 animate-slide-in-up"
-        >
-          {picker === 'date' ? (
-            <input
-              type="date"
-              value={chosenDay ?? ''}
-              onChange={(e) => {
-                if (!e.target.value) return clearDate();
-                setManualDate(chosenTime ? `${e.target.value}T${chosenTime}` : e.target.value);
-              }}
-              /* 16px minimum : en dessous, Safari iOS zoome à la mise au point. */
-              className="flex-1 bg-transparent outline-none text-[16px] text-idayal-text dark:text-zinc-100 tabular"
-            />
-          ) : (
-            <input
-              type="time"
-              value={chosenTime ?? ''}
-              onChange={(e) => {
-                const day = chosenDay ?? toLocalISODate(new Date());
-                setManualDate(e.target.value ? `${day}T${e.target.value}` : day);
-              }}
-              className="flex-1 bg-transparent outline-none text-[16px] text-idayal-text dark:text-zinc-100 tabular"
-            />
-          )}
-          <button
-            type="button"
-            onClick={act(() => setPicker(null))}
-            className="text-xs text-idayal-text-secondary px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            Fermer
-          </button>
         </div>
       )}
 
