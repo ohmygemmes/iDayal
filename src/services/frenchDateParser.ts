@@ -73,7 +73,6 @@ interface Match {
 
 /** Recherche un motif et renvoie le premier match avec sa position dans le texte original. */
 function findMatch(
-  text: string,
   lowered: string,
   regex: RegExp,
   builder: (m: RegExpExecArray, now: Date) => Date | null,
@@ -89,7 +88,6 @@ function findMatch(
 
 export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDate {
   const original = input;
-  const text = input;
   const lowered = input.toLowerCase();
 
   // Suffixe optionnel pour une heure : "à 12", "à 12h", "12h", "12h30", "12:30", "12"
@@ -223,7 +221,7 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   ];
 
   for (const { regex, build } of builders) {
-    const match = findMatch(text, lowered, regex, build, now);
+    const match = findMatch(lowered, regex, build, now);
     if (match) {
       return { cleanTitle: strip(original, match), detectedDate: match.date };
     }

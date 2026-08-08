@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Note, Settings, SubTask, Task } from '../types/task';
+import { toLocalISODate } from '../services/localDate';
 
 const TASKS_KEY = 'idayal:tasks:v1';
 const SETTINGS_KEY = 'idayal:settings:v1';
@@ -11,20 +12,6 @@ const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
   pinnedTaskId: null,
 };
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-/** YYYY-MM-DD en heure LOCALE (pas UTC). Indispensable pour ne pas se prendre +/- 1 jour à cause du fuseau. */
-export function toLocalISODate(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-/** YYYY-MM-DDTHH:mm en heure LOCALE. */
-export function toLocalISODateTime(d: Date): string {
-  return `${toLocalISODate(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
 
 function todayISO(): string {
   return toLocalISODate(new Date());

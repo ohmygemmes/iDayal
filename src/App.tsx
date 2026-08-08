@@ -13,7 +13,8 @@ import { parseFrenchDate } from './services/frenchDateParser';
 import { scheduleNotifications } from './services/notificationService';
 import { buildStack } from './services/stack';
 import { useCloudSync } from './hooks/useCloudSync';
-import { toLocalISODate, toLocalISODateTime, useTaskStore } from './stores/useTaskStore';
+import { useTaskStore } from './stores/useTaskStore';
+import { toLocalISODate, toLocalISODateTime } from './services/localDate';
 import type { TabKey } from './types/task';
 
 const APP_VERSION = '1.2.0';

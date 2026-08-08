@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseFrenchDate } from '../services/frenchDateParser';
-import { toLocalISODate, toLocalISODateTime } from '../stores/useTaskStore';
+import { atTimeOfDay, shiftBy } from '../services/dateShortcuts';
+import { toLocalISODate, toLocalISODateTime } from '../services/localDate';
 
 interface Props {
   onAdd: (title: string, scheduledDate: string | null) => void;
@@ -45,8 +46,8 @@ function dayPillLabel(iso: string): string {
   return time ? `${label}, ${time}` : label;
 }
 
-const CalendarIcon = ({ size = 15 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+const CalendarIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="5" width="18" height="16" rx="2" />
     <path d="M3 9h18M8 3v4M16 3v4" />
   </svg>
@@ -131,6 +132,22 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     hold();
     setFocused(true);
   };
+
+  /*
+   * Au doigt, toucher le champ suffit à ouvrir le sélecteur. À la souris, non :
+   * Chrome et Firefox ne l'ouvrent que depuis leur petite icône, que la
+   * transparence rend inatteignable — le contrôle serait mort sur ordinateur.
+   * `showPicker` couvre ce cas, et n'est appelé que sur pointeur fin pour ne
+   * rien changer au tactile, qui fonctionne déjà.
+   */
+  const openNativePicker = (e: React.MouseEvent<HTMLInputElement>) => {
+    if (!window.matchMedia?.('(pointer: fine)').matches) return;
+    try {
+      e.currentTarget.showPicker();
+    } catch {
+      // Non supporté, ou déjà ouvert : le comportement par défaut prend le relais.
+    }
+  };
   const releaseSoon = () => {
     hold();
     blurTimer.current = window.setTimeout(() => setFocused(false), 250);
@@ -172,33 +189,16 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
       ? effectiveScheduled.slice(11, 16)
       : null;
 
-  /**
-   * Point de départ des décalages.
-   *
-   * C'est la règle qui compte : « 12h » puis « +1h » doit donner 13h, pas
-   * l'heure qu'il est plus une. On part donc de ce qui est déjà retenu.
-   * Un jour sans heure garde l'heure courante, faute de mieux ; sans rien,
-   * c'est maintenant.
-   */
-  const shiftBase = (): Date => {
-    if (effectiveScheduled && effectiveScheduled.length > 10)
-      return new Date(effectiveScheduled);
-    const now = new Date();
-    if (chosenDay) {
-      const d = new Date(chosenDay + 'T00:00:00');
-      d.setHours(now.getHours(), now.getMinutes(), 0, 0);
-      return d;
-    }
-    return now;
-  };
+  /* Les règles de décalage vivent dans services/dateShortcuts, où elles sont
+     couvertes par des tests : elles portent des promesses précises (« 12h puis
+     +1h donne 13h ») que rien ne rattraperait à la relecture. */
+  const applyShift = (hours: number) =>
+    setManualDate(shiftBy(effectiveScheduled ?? '', hours, new Date()));
 
-  const shiftBy = (hours: number) =>
-    setManualDate(toLocalISODateTime(new Date(shiftBase().getTime() + hours * 3600_000)));
-
-  /** Poser une heure fixe garde le jour retenu ; sans jour, c'est aujourd'hui. */
   const setTimeOfDay = (h: number, m: number) =>
-    setManualDate(`${chosenDay ?? toLocalISODate(new Date())}T${pad2(h)}:${pad2(m)}`);
+    setManualDate(atTimeOfDay(effectiveScheduled ?? '', h, m, new Date()));
 
+  /** Retire le choix manuel : la barre revient à ce que dit le texte, sinon à aujourd'hui. */
   const clearDate = () => setManualDate('');
 
   const addOne = (raw: string, forcedDate: string | null) => {
@@ -270,7 +270,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
               son tour pour voir enfin le calendrier — deux gestes pour un.
             */}
             <div className="relative inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[15px] font-semibold bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)] active:scale-95 transition-transform">
-              <CalendarIcon size={17} />
+              <CalendarIcon />
               {effectiveScheduled ? dayPillLabel(effectiveScheduled) : "Aujourd'hui"}
               <input
                 type="date"
@@ -287,13 +287,14 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                   et il est hors du formulaire d'ajout.
                 */
                 required
+                onClick={openNativePicker}
                 onFocus={holdOpen}
                 onBlur={releaseSoon}
                 onChange={(e) => {
                   hold();
-                  /* Si le navigateur garde son bouton, qu'il fasse au moins
-                     quelque chose de sensé : revenir à aujourd'hui, comme la
-                     croix — plutôt que de rester sans effet. */
+                  /* Si le navigateur garde son bouton « effacer », qu'il fasse
+                     au moins la même chose que la croix : retirer le choix
+                     manuel — plutôt que de rester sans effet. */
                   if (!e.target.value) return clearDate();
                   setManualDate(
                     chosenTime ? `${e.target.value}T${chosenTime}` : e.target.value
@@ -336,7 +337,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           {/* Décalages, à partir de l'heure retenue. */}
           <div className={groupShell}>
             {SHIFTS.map((s) => (
-              <GroupButton key={s.label} onClick={act(() => shiftBy(s.hours))}>
+              <GroupButton key={s.label} onClick={act(() => applyShift(s.hours))}>
                 {s.label}
               </GroupButton>
             ))}
@@ -347,6 +348,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                 type="time"
                 aria-label="Choisir l'heure"
                 value={chosenTime ?? ''}
+                onClick={openNativePicker}
                 onFocus={holdOpen}
                 onBlur={releaseSoon}
                 onChange={(e) => {

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts && npx --yes tsx src/services/__tests__/syncDecision.test.mts"
+    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts && npx --yes tsx src/services/__tests__/syncDecision.test.mts && npx --yes tsx src/services/__tests__/dateShortcuts.test.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.1",
