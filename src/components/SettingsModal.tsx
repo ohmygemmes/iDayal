@@ -1,3 +1,4 @@
+import { toLocalISODate } from '../services/localDate';
 import { useEffect, useRef, useState } from 'react';
 import {
   isNotificationSupported,
@@ -65,7 +66,7 @@ export function SettingsModal({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `idayal-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `idayal-${toLocalISODate(new Date())}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

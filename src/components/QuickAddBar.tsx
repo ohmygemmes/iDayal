@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseFrenchDate } from '../services/frenchDateParser';
 import { atTimeOfDay, shiftBy } from '../services/dateShortcuts';
-import { toLocalISODate, toLocalISODateTime } from '../services/localDate';
+import { pad2, toLocalISODate, toLocalISODateTime } from '../services/localDate';
 
 interface Props {
   onAdd: (title: string, scheduledDate: string | null) => void;
   /** Ref pilotée par App pour le raccourci clavier de focus (ordinateur). */
   inputRef?: React.RefObject<HTMLInputElement>;
 }
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /** Heures fixes proposées, posées telles quelles sur le jour retenu. */
 const FIXED_TIMES: Array<[number, number]> = [
