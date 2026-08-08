@@ -277,11 +277,24 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                 aria-label="Choisir le jour"
                 /* Jamais vide : le calendrier doit s'ouvrir sur le bon mois. */
                 value={chosenDay ?? toLocalISODate(new Date())}
+                /*
+                  Le calendrier affiché est celui du navigateur : ses commandes
+                  ne nous appartiennent pas et ne peuvent pas être retirées
+                  depuis la page. `required` est le seul levier — un champ qui
+                  ne peut pas être vide n'a pas de raison d'offrir « effacer »,
+                  et plusieurs navigateurs masquent le bouton en conséquence.
+                  Sans effet sur la saisie : le champ porte toujours une valeur,
+                  et il est hors du formulaire d'ajout.
+                */
+                required
                 onFocus={holdOpen}
                 onBlur={releaseSoon}
                 onChange={(e) => {
                   hold();
-                  if (!e.target.value) return;
+                  /* Si le navigateur garde son bouton, qu'il fasse au moins
+                     quelque chose de sensé : revenir à aujourd'hui, comme la
+                     croix — plutôt que de rester sans effet. */
+                  if (!e.target.value) return clearDate();
                   setManualDate(
                     chosenTime ? `${e.target.value}T${chosenTime}` : e.target.value
                   );
