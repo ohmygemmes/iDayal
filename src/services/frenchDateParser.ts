@@ -90,12 +90,20 @@ export function parseFrenchDate(input: string, now: Date = new Date()): ParsedDa
   const original = input;
   const lowered = input.toLowerCase();
 
-  // Suffixe optionnel pour une heure : "à 12", "à 12h", "12h", "12h30", "12:30", "12"
-  // Capture les heures dans le groupe N et les minutes dans le groupe N+1.
-  // Le "à" est optionnel ; "h" ou ":" sont optionnels (mais on a au moins un chiffre).
-  // Le « à » est optionnel et accepté sans accent : on tape rarement les
-  // accents au clavier du téléphone.
-  const TIME = '(?:\\s+(?:[aà]\\s+)?(\\d{1,2})(?:[h:](\\d{2})?)?)?';
+  /*
+   * Suffixe d'heure optionnel : « 12h », « 12h30 », « à 12h », « 12:30 ».
+   * Les heures sont capturées dans le groupe N, les minutes dans le N+1.
+   *
+   * C'est le « h » — ou le deux-points, même intention — qui fait l'heure.
+   * Un nombre nu n'en est jamais une : « acheter 3 mai 2 pommes » parlait de
+   * deux pommes, pas de deux heures du matin, et le mot était retiré du titre
+   * en prime. Rien dans une phrase ne distingue un nombre d'une heure, sauf
+   * cette lettre.
+   *
+   * Le « à » reste facultatif et accepté sans accent : personne ne tape les
+   * accents au clavier d'un téléphone.
+   */
+  const TIME = '(?:\\s+(?:[aà]\\s+)?(\\d{1,2})[h:](\\d{2})?)?';
 
   function buildTime(base: Date, hStr?: string, mStr?: string): Date | null {
     if (!hStr) return base;

@@ -67,8 +67,25 @@ t('rdv 10 FÉVRIER', 'rdv', [10, 2, 2027, 0, 0]);
 t('rdv 10 fevrier', 'rdv', [10, 2, 2027, 0, 0]);
 t('rdv 1 Décembre', 'rdv', [1, 12, 2026, 0, 0]);
 
+console.log("\n--- C'est le « h » qui fait l'heure, jamais un nombre nu ---");
+/*
+ * Un nombre nu suivant une date était lu comme une heure, ce qui mangeait le
+ * mot dans le titre et posait une heure inventée : « acheter 3 mai 2 pommes »
+ * devenait « acheter pommes » à 2h du matin. Rien dans une phrase ne distingue
+ * un nombre d'une heure, sauf le « h » (ou le deux-points).
+ */
+t('acheter 3 mai 2 pommes', 'acheter 2 pommes', [3, 5, 2027, 0, 0]);
+t('acheter 12 juin 3 kg de farine', 'acheter 3 kg de farine', [12, 6, 2027, 0, 0]);
+t('reunion mardi 5 personnes', 'reunion 5 personnes', [11, 8, 2026, 0, 0]);
+// Le prix cité juste après le jour ne doit pas devenir une heure non plus.
+t('payer le 15 avril 30 euros', 'payer 30 euros', [15, 4, 2027, 0, 0]);
+// Contrepartie assumée : sans « h », le nombre reste dans le titre.
+t('course demain 12', 'course 12', [5, 8, 2026, 0, 0]);
+// Avec le marqueur, rien ne change.
+t('course demain 12h', 'course', [5, 8, 2026, 12, 0]);
+t('course demain 12:30', 'course', [5, 8, 2026, 12, 30]);
+
 console.log('\n--- Les autres formats ne doivent pas casser ---');
-t('course demain 12', 'course', [5, 8, 2026, 12, 0]);
 t('course demain', 'course', [5, 8, 2026, 0, 0]);
 t('rdv mardi 14h', 'rdv', [11, 8, 2026, 14, 0]);
 t('rdv lundi prochain', 'rdv', [17, 8, 2026, 0, 0]);
