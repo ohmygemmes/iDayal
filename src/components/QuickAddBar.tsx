@@ -220,21 +220,6 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
     inputRef.current?.focus();
   };
 
-  /** Coller plusieurs lignes crée plusieurs tâches d'un coup. */
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData('text');
-    const lines = pasted
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length < 2) return; // comportement normal
-    e.preventDefault();
-    lines.forEach((l) => addOne(l, null));
-    setValue('');
-    setManualDate('');
-    inputRef.current?.focus();
-  };
-
   const showShortcuts = focused || Boolean(manualDate);
 
   return (
@@ -377,7 +362,6 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onPaste={handlePaste}
           onFocus={() => {
             hold();
             setFocused(true);

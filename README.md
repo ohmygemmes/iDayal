@@ -122,7 +122,13 @@ Ensuite tu peux le déclencher par :
 | `1` `2` `3` | Aujourd'hui / Cartes / Plus tard |
 | `←` `→` | Sur une carte : reporter / terminer |
 
-Coller plusieurs lignes dans le champ de saisie crée une tâche par ligne.
+Le champ de saisie crée **une tâche à la fois**. Coller un texte de plusieurs
+lignes n'en crée qu'une : le clavier d'un téléphone ne permet pas d'aller à la
+ligne, donc la saisie multiple ne servait qu'à l'ordinateur — et faisait
+disparaître ce qui était déjà tapé.
+
+> Pour noter plusieurs choses d'un coup depuis un raccourci iOS, le paramètre
+> `?add=` accepte toujours plusieurs lignes (voir plus haut).
 
 ## Détection de dates en français
 
