@@ -160,13 +160,70 @@ export function SwipeCard({
         />
 
         {/*
-          Le titre en haut, ses commandes juste dessous, et tout le reste de la
-          hauteur pour les étapes et la note.
+          Les commandes en haut à gauche, le titre au centre.
 
-          Le titre était centré au milieu d'un grand vide : agréable sur une
-          tâche seule, intenable dès qu'on ajoutait trois étapes et une note —
-          le contenu se retrouvait comprimé sous un espace qui ne servait à rien.
+          Posées sous le titre, elles le repoussaient vers le bas et bornaient
+          sa taille. En les sortant du chemin, le titre part du haut et peut
+          grossir autant que la carte le permet.
         */}
+        {isTop && (
+          <div className="relative flex items-center gap-1.5 mb-1">
+            {onTogglePin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTogglePin();
+                }}
+                aria-pressed={isPinned}
+                aria-label={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+                title={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+                className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition active:scale-90 ${
+                  isPinned
+                    ? 'bg-idayal-blue-soft dark:bg-idayal-blue/20 text-idayal-blue dark:text-idayal-blue-light'
+                    : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
+                }`}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l2.4 6.9h7.2l-5.8 4.3 2.2 6.9L12 15.9l-6 4.2 2.2-6.9L2.4 8.9h7.2z" />
+                </svg>
+              </button>
+            )}
+
+            {/*
+              L'échéance est un bouton, pas une étiquette. Sans heure posée, il
+              se réduit au seul calendrier : proposer « Choisir un moment » en
+              toutes lettres pesait plus lourd que la tâche elle-même.
+            */}
+            {onReschedule && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWhenOpen(true);
+                }}
+                aria-label="Choisir un moment"
+                title="Choisir un moment"
+                className="flex-shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue dark:text-idayal-blue-light text-[12.5px] font-semibold tabular active:scale-95 transition"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="5" width="18" height="16" rx="3" />
+                  <path d="M8 3v4M16 3v4M3 10h18" />
+                </svg>
+                {task.scheduledDate && task.scheduledDate.length > 10 && (
+                  <>
+                    {new Date(task.scheduledDate).toLocaleString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                    <span aria-hidden className="opacity-60 text-[10px]">▾</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className={`relative flex flex-col items-center text-center gap-2 pb-2.5 ${bare ? 'flex-1' : ''}`}>
           {task.isCarriedOver && (
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[10.5px] font-semibold uppercase tracking-[0.06em]">
@@ -178,68 +235,9 @@ export function SwipeCard({
             </span>
           )}
 
-          <p className={`font-semibold text-idayal-text dark:text-zinc-100 tracking-tight2 ${bare ? 'text-[34px] leading-[1.12]' : 'text-[21px] leading-snug'}`}>
+          <p className={`font-semibold text-idayal-text dark:text-zinc-100 tracking-tight2 ${bare ? 'text-[38px] leading-[1.1]' : 'text-[21px] leading-snug'}`}>
             {task.title || 'Tâche'}
           </p>
-
-          {/* Deux commandes discrètes, sur une ligne, sous le titre. */}
-          {isTop && (
-            <div className="flex items-center justify-center gap-1.5">
-              {onTogglePin && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTogglePin();
-                  }}
-                  aria-pressed={isPinned}
-                  aria-label={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
-                  title={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
-                  className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition active:scale-90 ${
-                    isPinned
-                      ? 'bg-idayal-blue-soft dark:bg-idayal-blue/20 text-idayal-blue dark:text-idayal-blue-light'
-                      : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
-                  }`}
-                >
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2l2.4 6.9h7.2l-5.8 4.3 2.2 6.9L12 15.9l-6 4.2 2.2-6.9L2.4 8.9h7.2z" />
-                  </svg>
-                </button>
-              )}
-
-              {/*
-                L'échéance est un bouton, pas une étiquette. Sans heure posée, il
-                se réduit au seul calendrier : proposer « Choisir un moment » en
-                toutes lettres pesait plus lourd que la tâche elle-même.
-              */}
-              {onReschedule && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setWhenOpen(true);
-                  }}
-                  aria-label="Choisir un moment"
-                  title="Choisir un moment"
-                  className="flex-shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue dark:text-idayal-blue-light text-[12.5px] font-semibold tabular active:scale-95 transition"
-                >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="5" width="18" height="16" rx="3" />
-                    <path d="M8 3v4M16 3v4M3 10h18" />
-                  </svg>
-                  {task.scheduledDate && task.scheduledDate.length > 10 && (
-                    <>
-                      {new Date(task.scheduledDate).toLocaleString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                      <span aria-hidden className="opacity-60 text-[10px]">▾</span>
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Étapes et note — zone interactive, hors du geste de balayage */}
