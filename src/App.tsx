@@ -11,7 +11,7 @@ import { TabBar } from './components/TabBar';
 import { TodayView } from './components/TodayView';
 import { parseFrenchDate } from './services/frenchDateParser';
 import { scheduleNotifications } from './services/notificationService';
-import { buildStack } from './services/stack';
+import { orderDeck } from './services/stack';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useTaskStore } from './stores/useTaskStore';
 import { toLocalISODate, toLocalISODateTime } from './services/localDate';
@@ -143,9 +143,15 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, [undoId, clearUndo]);
 
+  /*
+   * La tâche réellement sous les yeux.
+   *
+   * `App` recalculait un ordre à lui, ignorant celui de la vue Cartes : il
+   * croyait donc regarder une carte pendant qu'une autre était affichée.
+   */
   const stack = useMemo(
-    () => buildStack(store.todayTasks, store.settings.pinnedTaskId),
-    [store.todayTasks, store.settings.pinnedTaskId]
+    () => orderDeck(store.todayTasks, store.settings.pinnedTaskId, deckFront, deckBack),
+    [store.todayTasks, store.settings.pinnedTaskId, deckFront, deckBack]
   );
   const currentTop = stack[0] ?? null;
 
@@ -216,19 +222,21 @@ export default function App() {
   };
 
   const handleAdd = (title: string, scheduledDate: string | null) => {
-    store.addTask(title, scheduledDate);
+    const id = store.addTask(title, scheduledDate);
+    if (!id) return;
     /*
-     * Une tâche qu'on vient d'écrire passe devant le paquet.
+     * Ce qu'on vient d'écrire s'affiche, sauf si la carte en cours est étoilée.
      *
-     * Le store la place en tête de la liste, mais une tâche remontée plus tôt
-     * depuis le paquet restait devant elle : on notait quelque chose et la carte
-     * ne bougeait pas. Ce qu'on vient d'écrire est forcément le geste le plus
-     * récent, donc il l'emporte.
+     * L'étoile était remontée en tête quoi qu'il arrive : on notait une tâche
+     * en regardant une carte quelconque, et c'est une troisième, étoilée un
+     * jour et oubliée depuis, qui surgissait à la place.
      *
-     * L'étoile, elle, garde le dessus : c'est le seul ordre qu'on ait demandé
-     * explicitement.
+     * Elle ne garde donc le dessus que si c'est elle qu'on regardait — là, le
+     * geste est délibéré et récent.
      */
-    setDeckFront(null);
+    const shownIsStarred = !!currentTop && store.settings.pinnedTaskId === currentTop.id;
+    setDeckFront(shownIsStarred ? null : id);
+    setDeckBack((prev) => prev.filter((x) => x !== id));
   };
 
   /**

@@ -115,7 +115,8 @@ export interface TaskStore {
   settings: Settings;
   todayTasks: Task[];
   laterTasks: Task[];
-  addTask: (title: string, scheduledDate?: string | null) => void;
+  /** Renvoie l'identifiant créé, ou `null` si le titre était vide. */
+  addTask: (title: string, scheduledDate?: string | null) => string | null;
   toggleComplete: (id: string) => void;
   /** Termine une tâche en décidant du sort de sa note. */
   completeTask: (id: string, keepNote: boolean) => void;
@@ -214,7 +215,7 @@ export function useTaskStore(): TaskStore {
 
   const addTask = useCallback((title: string, scheduledDate: string | null = null) => {
     const trimmed = title.trim();
-    if (!trimmed) return;
+    if (!trimmed) return null;
     const today = todayISO();
     const task: Task = {
       id: newId(),
@@ -226,6 +227,7 @@ export function useTaskStore(): TaskStore {
       originalDate: today,
     };
     setTasks((prev) => [task, ...prev]);
+    return task.id;
   }, []);
 
   const toggleComplete = useCallback(

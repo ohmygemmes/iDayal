@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { buildStack } from '../services/stack';
+import { orderDeck } from '../services/stack';
 import type { Task } from '../types/task';
 import { CompletionScreen } from './CompletionScreen';
 import { SwipeCard } from './SwipeCard';
@@ -53,32 +53,10 @@ export function CardsView({
   onToggleSubtask,
   onDeleteSubtask,
 }: Props) {
-  /*
-   * Ordre du paquet, en trois couches.
-   *
-   * `buildStack` remonte l'étoile ; une tâche choisie dans le paquet passe
-   * devant elle, puisque c'est le geste le plus récent ; et une tâche déjà
-   * arbitrée passe derrière tout le monde.
-   *
-   * Cette dernière couche est ce qui empêche de tourner en rond : répondre
-   * « Aujourd'hui » à la question « Quand ? » laisse la tâche dans la journée,
-   * donc au même endroit, et la même carte revenait indéfiniment.
-   */
-  const stack = useMemo(() => {
-    let base = buildStack(todayTasks, pinnedTaskId);
-
-    if (deckFront) {
-      const i = base.findIndex((t) => t.id === deckFront);
-      if (i > 0) base = [base[i], ...base.slice(0, i), ...base.slice(i + 1)];
-    }
-
-    if (deckBack.length === 0) return base;
-    const front = base.filter((t) => !deckBack.includes(t.id));
-    const back = deckBack
-      .map((id) => base.find((t) => t.id === id))
-      .filter((t): t is Task => !!t);
-    return [...front, ...back];
-  }, [todayTasks, pinnedTaskId, deckFront, deckBack]);
+  const stack = useMemo(
+    () => orderDeck(todayTasks, pinnedTaskId, deckFront, deckBack),
+    [todayTasks, pinnedTaskId, deckFront, deckBack]
+  );
 
   const handleReschedule = (id: string, scheduledDate: string) => {
     onReschedule(id, scheduledDate);
