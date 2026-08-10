@@ -4,10 +4,9 @@ import type { Task } from '../types/task';
  * Ordre de la pile de cartes : tâches du jour non complétées,
  * avec la tâche « en cours » (épinglée) remontée en tête.
  */
-export function buildStack(todayTasks: Task[], pinnedTaskId: string | null): Task[] {
+export function buildStack(todayTasks: Task[]): Task[] {
   const pending = todayTasks.filter((t) => !t.completedDate);
-  if (!pinnedTaskId) return pending;
-  const idx = pending.findIndex((t) => t.id === pinnedTaskId);
+  const idx = pending.findIndex((t) => t.isPinned);
   if (idx <= 0) return pending;
   return [pending[idx], ...pending.slice(0, idx), ...pending.slice(idx + 1)];
 }
@@ -23,13 +22,8 @@ export function buildStack(todayTasks: Task[], pinnedTaskId: string | null): Tas
  * afficher, et `App` pour savoir quelle tâche est réellement sous les yeux —
  * il recalculait un ordre à lui, qui ne correspondait plus à l'affichage.
  */
-export function orderDeck(
-  todayTasks: Task[],
-  pinnedTaskId: string | null,
-  front: string | null,
-  back: string[]
-): Task[] {
-  let stack = buildStack(todayTasks, pinnedTaskId);
+export function orderDeck(todayTasks: Task[], front: string | null, back: string[]): Task[] {
+  let stack = buildStack(todayTasks);
 
   if (front) {
     const i = stack.findIndex((t) => t.id === front);

@@ -21,6 +21,15 @@ export interface Task {
   note?: string;
   /** Étapes de la tâche. Absent tant qu'on n'en a pas ajouté. */
   subtasks?: SubTask[];
+  /**
+   * Tâche gardée en tête du paquet.
+   *
+   * Le drapeau était rangé dans les réglages, sous `pinnedTaskId`. Or la
+   * synchronisation n'échange que les tâches et les notes : l'étoile posée sur
+   * le téléphone ne parvenait jamais à l'ordinateur. Elle décrit la tâche, pas
+   * l'appareil — sa place est ici, où elle voyage avec le reste.
+   */
+  isPinned?: boolean;
 }
 
 /**

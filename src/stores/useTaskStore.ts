@@ -182,6 +182,24 @@ export function useTaskStore(): TaskStore {
     setUndoState(null);
   }, []);
 
+  /*
+   * Reprise de l'ancien emplacement de l'étoile.
+   *
+   * Elle vivait dans les réglages, qui ne sont pas synchronisés : elle restait
+   * sur l'appareil où on l'avait posée. On la reporte une fois sur la tâche,
+   * puis on vide le réglage — les installations déjà à jour ne repassent pas ici.
+   */
+  useEffect(() => {
+    const ancien = settings.pinnedTaskId;
+    if (!ancien) return;
+    setTasks((prev) =>
+      prev.some((t) => t.id === ancien)
+        ? prev.map((t) => (t.id === ancien ? { ...t, isPinned: true } : t))
+        : prev
+    );
+    setSettings((prev) => ({ ...prev, pinnedTaskId: null }));
+  }, [settings.pinnedTaskId]);
+
   // Carry over au montage et à chaque retour de focus.
   useEffect(() => {
     const run = () => {
@@ -456,8 +474,18 @@ export function useTaskStore(): TaskStore {
     );
   }, []);
 
+  /**
+   * Une seule tâche porte l'étoile à la fois : l'écran Cartes n'en montre qu'une,
+   * et deux « celle-ci d'abord » ne veulent rien dire.
+   */
   const pinTask = useCallback((id: string | null) => {
-    setSettings((prev) => ({ ...prev, pinnedTaskId: prev.pinnedTaskId === id ? null : id }));
+    setTasks((prev) => {
+      const cible = id ? prev.find((t) => t.id === id) : null;
+      const allume = !!cible && !cible.isPinned;
+      return prev.map((t) =>
+        t.isPinned || t.id === id ? { ...t, isPinned: allume && t.id === id } : t
+      );
+    });
   }, []);
 
   const placeAfterTask = useCallback((id: string, afterId: string | null) => {

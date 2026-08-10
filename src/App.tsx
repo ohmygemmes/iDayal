@@ -150,8 +150,8 @@ export default function App() {
    * croyait donc regarder une carte pendant qu'une autre était affichée.
    */
   const stack = useMemo(
-    () => orderDeck(store.todayTasks, store.settings.pinnedTaskId, deckFront, deckBack),
-    [store.todayTasks, store.settings.pinnedTaskId, deckFront, deckBack]
+    () => orderDeck(store.todayTasks, deckFront, deckBack),
+    [store.todayTasks, deckFront, deckBack]
   );
   const currentTop = stack[0] ?? null;
 
@@ -160,8 +160,12 @@ export default function App() {
    * on revient sur celle qu'elle avait interrompue au lieu de retomber
    * sur une tâche au hasard.
    */
-  const { updateSettings, todayTasks } = store;
-  const pinnedTaskId = store.settings.pinnedTaskId;
+  const { todayTasks, pinTask } = store;
+  /** L'étoile est portée par la tâche, donc lue depuis elle. */
+  const pinnedTaskId = useMemo(
+    () => store.tasks.find((t) => t.isPinned)?.id ?? null,
+    [store.tasks]
+  );
   useEffect(() => {
     if (!pinnedTaskId) return;
     const stillActive = todayTasks.some((t) => t.id === pinnedTaskId && !t.completedDate);
@@ -169,10 +173,10 @@ export default function App() {
     const resume = resumeTaskId
       ? todayTasks.find((t) => t.id === resumeTaskId && !t.completedDate)
       : null;
-    updateSettings({ pinnedTaskId: resume ? resume.id : null });
+    pinTask(resume ? resume.id : null);
     setResumeTaskId(null);
     if (resume) setToast(`Retour à : ${resume.title}`);
-  }, [todayTasks, pinnedTaskId, resumeTaskId, updateSettings]);
+  }, [todayTasks, pinnedTaskId, resumeTaskId, pinTask]);
 
   // Tâche dont l'heure est arrivée et qui n'est pas déjà celle en cours.
   const dueTask = useMemo(() => {
@@ -234,7 +238,7 @@ export default function App() {
      * Elle ne garde donc le dessus que si c'est elle qu'on regardait — là, le
      * geste est délibéré et récent.
      */
-    const shownIsStarred = !!currentTop && store.settings.pinnedTaskId === currentTop.id;
+    const shownIsStarred = !!currentTop?.isPinned;
     setDeckFront(shownIsStarred ? null : id);
     setDeckBack((prev) => prev.filter((x) => x !== id));
   };
@@ -316,9 +320,7 @@ export default function App() {
    * l'écran Cartes n'en montre qu'une de toute façon.
    */
   const handleTogglePin = (id: string) => {
-    store.updateSettings({
-      pinnedTaskId: store.settings.pinnedTaskId === id ? null : id,
-    });
+    store.pinTask(id);
   };
 
   const handleDueDoNow = () => {
@@ -326,7 +328,7 @@ export default function App() {
     setDismissedUntil((p) => ({ ...p, [dueTask.id]: FOREVER }));
     // On mémorise ce qu'on était en train de faire pour y revenir après.
     setResumeTaskId(currentTop && currentTop.id !== dueTask.id ? currentTop.id : null);
-    store.updateSettings({ pinnedTaskId: dueTask.id });
+    store.pinTask(dueTask.id);
     setTab('cards');
   };
 
@@ -336,7 +338,7 @@ export default function App() {
     // La tâche se glisse juste derrière celle en cours. Si celle-ci est épinglée,
     // elle est de toute façon remontée en tête par buildStack : il suffit alors de
     // mettre la nouvelle en tête du tableau pour qu'elle devienne la carte n°2.
-    const topIsPinned = !!currentTop && store.settings.pinnedTaskId === currentTop.id;
+    const topIsPinned = !!currentTop?.isPinned;
     store.placeAfterTask(dueTask.id, topIsPinned ? null : currentTop?.id ?? null);
     setToast('Placée juste après');
   };
@@ -362,7 +364,7 @@ export default function App() {
             onEditTitle={store.updateTaskTitle}
             onPin={store.pinTask}
             onClearCompleted={store.clearCompleted}
-            pinnedTaskId={store.settings.pinnedTaskId}
+            pinnedTaskId={pinnedTaskId}
           />
         )}
         {tab === 'later' && (
@@ -378,7 +380,7 @@ export default function App() {
           <CardsView
             todayTasks={store.todayTasks}
             laterTasks={store.laterTasks}
-            pinnedTaskId={store.settings.pinnedTaskId}
+            pinnedTaskId={pinnedTaskId}
             onComplete={requestComplete}
             onPostpone={store.postponeToTomorrow}
             onPromoteToTop={handlePromoteToTop}

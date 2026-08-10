@@ -54,8 +54,8 @@ export function CardsView({
   onDeleteSubtask,
 }: Props) {
   const stack = useMemo(
-    () => orderDeck(todayTasks, pinnedTaskId, deckFront, deckBack),
-    [todayTasks, pinnedTaskId, deckFront, deckBack]
+    () => orderDeck(todayTasks, deckFront, deckBack),
+    [todayTasks, deckFront, deckBack]
   );
 
   const handleReschedule = (id: string, scheduledDate: string) => {
@@ -169,7 +169,7 @@ export function CardsView({
                 onDone={() => handleDone(t.id)}
                 onPostpone={() => handlePostpone(t.id)}
                 onReschedule={(iso) => handleReschedule(t.id, iso)}
-                isPinned={pinnedTaskId === t.id}
+                isPinned={!!t.isPinned}
                 onTogglePin={() => onTogglePin(t.id)}
                 onSetNote={(text) => onSetNote(t.id, text)}
                 onAddSubtask={(title) => onAddSubtask(t.id, title)}
