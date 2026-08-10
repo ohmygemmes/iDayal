@@ -48,6 +48,16 @@ export default function App() {
   });
   const [tab, setTab] = useState<TabKey>('today');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /*
+   * Ordre du paquet de cartes, propre à la session.
+   *
+   * Il vit ici et non dans `CardsView` : changer d'onglet démonte la vue, et
+   * l'arbitrage déjà fait repartait à zéro — les tâches qu'on venait d'écarter
+   * revenaient sur le dessus. Rien de tout cela n'a à être enregistré : demain,
+   * la journée se réordonne d'elle-même.
+   */
+  const [deckFront, setDeckFront] = useState<string | null>(null);
+  const [deckBack, setDeckBack] = useState<string[]>([]);
   const [transitioning, setTransitioning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dismissedUntil, setDismissedUntil] = useState<Record<string, number>>({});
@@ -253,8 +263,26 @@ export default function App() {
     if (isLater) store.bringToToday(id);
     // Choix délibéré depuis le paquet : ce n'est pas une interruption, on oublie la reprise.
     setResumeTaskId(null);
-    store.updateSettings({ pinnedTaskId: id });
+    /*
+     * Remonter une tâche en tête n'est pas la mettre en favori.
+     *
+     * Les deux passaient par `pinnedTaskId` : depuis que l'étoile affiche cet
+     * état, choisir une tâche dans le paquet l'étoilait sans qu'on l'ait
+     * demandé — et une tâche étoilée est reforcée en tête à chaque retour sur
+     * l'onglet, donc elle revenait sans fin.
+     *
+     * L'ordre du paquet vit maintenant ici, le temps de la session. L'étoile
+     * reste ce qu'elle est : un choix, et seulement un choix.
+     */
+    setDeckFront(id);
+    setDeckBack((prev) => prev.filter((x) => x !== id));
     setTab('cards');
+  };
+
+  /** Une tâche arbitrée passe derrière celles qui ne le sont pas encore. */
+  const handleDeckPushBack = (id: string) => {
+    setDeckBack((prev) => [...prev.filter((x) => x !== id), id]);
+    setDeckFront((f) => (f === id ? null : f));
   };
 
   /**
@@ -335,6 +363,9 @@ export default function App() {
             onPromoteToTop={handlePromoteToTop}
             onReschedule={store.rescheduleTask}
             onTogglePin={handleTogglePin}
+            deckFront={deckFront}
+            deckBack={deckBack}
+            onPushBack={handleDeckPushBack}
             onSetNote={store.setTaskNote}
             onAddSubtask={store.addSubtask}
             onToggleSubtask={store.toggleSubtask}

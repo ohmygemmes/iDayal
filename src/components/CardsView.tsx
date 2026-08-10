@@ -16,6 +16,11 @@ interface Props {
   onReschedule: (id: string, scheduledDate: string) => void;
   /** Met la tâche en tête du paquet, ou l'en retire si elle y est déjà. */
   onTogglePin: (id: string) => void;
+  /** Tâche remontée en tête depuis le paquet, le temps de la session. */
+  deckFront: string | null;
+  /** Tâches déjà arbitrées, renvoyées en fin de paquet. */
+  deckBack: string[];
+  onPushBack: (id: string) => void;
   onSetNote: (id: string, text: string) => void;
   onAddSubtask: (taskId: string, title: string) => void;
   onToggleSubtask: (taskId: string, subId: string) => void;
@@ -39,6 +44,9 @@ export function CardsView({
   onPostpone,
   onReschedule,
   onTogglePin,
+  deckFront,
+  deckBack,
+  onPushBack,
   onPromoteToTop,
   onSetNote,
   onAddSubtask,
@@ -46,30 +54,35 @@ export function CardsView({
   onDeleteSubtask,
 }: Props) {
   /*
-   * Tâches déjà arbitrées pendant cette session, renvoyées en fin de paquet.
+   * Ordre du paquet, en trois couches.
    *
-   * Choisir une échéance, c'est trier : la carte doit quitter le dessus, comme
-   * après « Fait » ou un balayage. Or répondre « Aujourd'hui » la laisse dans la
-   * journée — donc au même endroit, et on tournait en rond sur la même tâche.
+   * `buildStack` remonte l'étoile ; une tâche choisie dans le paquet passe
+   * devant elle, puisque c'est le geste le plus récent ; et une tâche déjà
+   * arbitrée passe derrière tout le monde.
    *
-   * L'ordre ne vit que le temps de l'écran : demain, la journée se réordonne
-   * d'elle-même, et rien de tout cela n'a à voyager jusqu'au serveur.
+   * Cette dernière couche est ce qui empêche de tourner en rond : répondre
+   * « Aujourd'hui » à la question « Quand ? » laisse la tâche dans la journée,
+   * donc au même endroit, et la même carte revenait indéfiniment.
    */
-  const [pushedBack, setPushedBack] = useState<string[]>([]);
-
   const stack = useMemo(() => {
-    const base = buildStack(todayTasks, pinnedTaskId);
-    if (pushedBack.length === 0) return base;
-    const front = base.filter((t) => !pushedBack.includes(t.id));
-    const back = pushedBack
+    let base = buildStack(todayTasks, pinnedTaskId);
+
+    if (deckFront) {
+      const i = base.findIndex((t) => t.id === deckFront);
+      if (i > 0) base = [base[i], ...base.slice(0, i), ...base.slice(i + 1)];
+    }
+
+    if (deckBack.length === 0) return base;
+    const front = base.filter((t) => !deckBack.includes(t.id));
+    const back = deckBack
       .map((id) => base.find((t) => t.id === id))
       .filter((t): t is Task => !!t);
     return [...front, ...back];
-  }, [todayTasks, pinnedTaskId, pushedBack]);
+  }, [todayTasks, pinnedTaskId, deckFront, deckBack]);
 
   const handleReschedule = (id: string, scheduledDate: string) => {
     onReschedule(id, scheduledDate);
-    setPushedBack((prev) => [...prev.filter((x) => x !== id), id]);
+    onPushBack(id);
   };
 
   /**
