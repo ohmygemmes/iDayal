@@ -133,17 +133,17 @@ export function CardsView({
     <div className="flex flex-col h-full">
       {/*
         Une ligne, pas trois.
-        « Cartes » figurait déjà sur l'onglet actif, et les deux boutons du bas
-        disent « Plus tard » et « Fait » : le rappel du balayage était une leçon
-        répétée à chaque ouverture, au prix de la hauteur dont la carte manque.
-        Le rappel clavier reste, mais seulement là où il y a un clavier.
+        Le rappel du balayage prend la place de « une à la fois », qui ne disait
+        rien que l'écran ne montre. Le rappel clavier reste, mais seulement là
+        où il y a un clavier.
       */}
       <header className="px-5 pt-2 pb-2 flex items-baseline gap-2">
         <h1 className="text-[15px] font-semibold text-idayal-text dark:text-zinc-100 tracking-tight2">
           Cartes
         </h1>
         <span className="text-[12px] text-idayal-text-muted dark:text-zinc-500">
-          une à la fois
+          <span className="text-idayal-green font-semibold">→</span> finir ·{' '}
+          <span className="text-idayal-orange font-semibold">←</span> reporter
         </span>
         <span className="kbd-hint items-center gap-1 ml-auto text-idayal-text-muted">
           <kbd>←</kbd>

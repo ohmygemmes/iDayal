@@ -75,13 +75,24 @@ export function SwipeCard({
       }
       onDone();
     },
+    /*
+     * Le balayage vers la gauche pose la même question que le bouton.
+     *
+     * Il envoyait la tâche à demain sans rien demander, quand le bouton juste
+     * en dessous, portant le même mot, ouvrait « Quand ? » : deux gestes qui
+     * disent « plus tard » et ne font pas la même chose.
+     *
+     * La carte revient d'elle-même en place, puisque rien n'a encore bougé — et
+     * c'est le choix, ensuite, qui l'envoie en fin de paquet.
+     */
     onSwipeLeft: () => {
       try {
         navigator.vibrate?.(10);
       } catch {
         /* ignore */
       }
-      onPostpone();
+      if (onReschedule) setWhenOpen(true);
+      else onPostpone();
     },
   });
 
