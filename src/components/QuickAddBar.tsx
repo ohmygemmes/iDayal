@@ -190,6 +190,12 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
   const detected = detectedPreview && detectedPreview !== ignoredDetected ? detectedPreview : null;
   const effectiveScheduled = manualDate || detected;
   const chosenDay = effectiveScheduled ? effectiveScheduled.slice(0, 10) : null;
+
+  const tomorrowISO = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return toLocalISODate(d);
+  })();
   const chosenTime =
     effectiveScheduled && effectiveScheduled.length > 10
       ? effectiveScheduled.slice(11, 16)
@@ -312,6 +318,28 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent border-0 p-0"
               />
             </div>
+            {/*
+              « Demain » à côté d'« Aujourd'hui ».
+              C'est la deuxième réponse la plus fréquente, et elle demandait
+              d'ouvrir le calendrier du système pour avancer d'un seul jour.
+              L'heure déjà retenue est conservée : choisir demain ne doit pas
+              effacer le 18:00 qu'on vient de poser.
+            */}
+            <button
+              type="button"
+              onClick={act(() =>
+                setManualDate(chosenTime ? `${tomorrowISO}T${chosenTime}` : tomorrowISO)
+              )}
+              aria-pressed={chosenDay === tomorrowISO}
+              className={`h-11 px-4 rounded-full text-[15px] font-semibold flex-shrink-0 active:scale-95 transition ${
+                chosenDay === tomorrowISO
+                  ? 'bg-idayal-blue text-white shadow-[0_4px_14px_rgba(59,125,216,0.40)]'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-idayal-text dark:text-zinc-200'
+              }`}
+            >
+              Demain
+            </button>
+
             {effectiveScheduled && (
               <button
                 type="button"

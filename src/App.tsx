@@ -216,6 +216,18 @@ export default function App() {
 
   const handleAdd = (title: string, scheduledDate: string | null) => {
     store.addTask(title, scheduledDate);
+    /*
+     * Une tâche qu'on vient d'écrire passe devant le paquet.
+     *
+     * Le store la place en tête de la liste, mais une tâche remontée plus tôt
+     * depuis le paquet restait devant elle : on notait quelque chose et la carte
+     * ne bougeait pas. Ce qu'on vient d'écrire est forcément le geste le plus
+     * récent, donc il l'emporte.
+     *
+     * L'étoile, elle, garde le dessus : c'est le seul ordre qu'on ait demandé
+     * explicitement.
+     */
+    setDeckFront(null);
   };
 
   /**

@@ -124,6 +124,15 @@ export function SwipeCard({
 
   const subtasks = task.subtasks ?? [];
   const note = task.note ?? '';
+  /*
+   * Une tâche nue n'a rien à montrer sous son titre.
+   *
+   * La carte est dimensionnée pour accueillir des étapes et une note ; quand il
+   * n'y en a pas, le titre restait petit en haut d'un grand vide. Il grossit
+   * alors pour occuper la carte — mais reste en haut : centré verticalement, il
+   * flottait au milieu de rien.
+   */
+  const bare = subtasks.length === 0 && !note.trim();
   const doneSubs = subtasks.filter((s) => s.done).length;
 
   const submitSubtask = () => {
@@ -158,7 +167,7 @@ export function SwipeCard({
           tâche seule, intenable dès qu'on ajoutait trois étapes et une note —
           le contenu se retrouvait comprimé sous un espace qui ne servait à rien.
         */}
-        <div className="relative flex flex-col gap-2 pb-2.5">
+        <div className={`relative flex flex-col gap-2 pb-2.5 ${bare ? 'flex-1' : ''}`}>
           {task.isCarriedOver && (
             <span className="self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[10.5px] font-semibold uppercase tracking-[0.06em]">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -169,7 +178,7 @@ export function SwipeCard({
             </span>
           )}
 
-          <p className="text-[21px] font-semibold text-idayal-text dark:text-zinc-100 leading-snug tracking-tight2">
+          <p className={`font-semibold text-idayal-text dark:text-zinc-100 tracking-tight2 ${bare ? 'text-[34px] leading-[1.12]' : 'text-[21px] leading-snug'}`}>
             {task.title || 'Tâche'}
           </p>
 
@@ -237,7 +246,7 @@ export function SwipeCard({
         {isTop && (
           <div
             ref={panelRef}
-            className="relative flex-1 min-h-0 overflow-y-auto no-scrollbar"
+            className={`relative min-h-0 overflow-y-auto no-scrollbar ${bare ? '' : 'flex-1'}`}
             style={{ touchAction: 'pan-y' }}
           >
             {subtasks.length > 0 && (
