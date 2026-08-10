@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSwipeGesture } from '../hooks/useSwipeGesture';
 import type { Task } from '../types/task';
+import { CardTimer } from './CardTimer';
+import { WhenSheet } from './WhenSheet';
 
 interface Props {
   task: Task;
@@ -8,6 +10,11 @@ interface Props {
   depth: number;
   onDone: () => void;
   onPostpone: () => void;
+  /** Pose une échéance choisie dans la feuille « Quand ? ». */
+  onReschedule?: (scheduledDate: string) => void;
+  /** Cette tâche est-elle celle qui reste en tête du paquet ? */
+  isPinned?: boolean;
+  onTogglePin?: () => void;
   onSetNote?: (text: string) => void;
   onAddSubtask?: (title: string) => void;
   onToggleSubtask?: (subId: string) => void;
@@ -42,12 +49,16 @@ export function SwipeCard({
   depth,
   onDone,
   onPostpone,
+  onReschedule,
+  isPinned = false,
+  onTogglePin,
   onSetNote,
   onAddSubtask,
   onToggleSubtask,
   onDeleteSubtask,
 }: Props) {
   const isTop = depth === 0;
+  const [whenOpen, setWhenOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
   const [subDraft, setSubDraft] = useState('');
@@ -128,32 +139,78 @@ export function SwipeCard({
           }}
         />
 
-        {task.isCarriedOver && (
-          <span className="relative inline-flex self-start items-center gap-1.5 px-2.5 py-1 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[11px] font-semibold uppercase tracking-[0.06em]">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            Reportée
-          </span>
-        )}
+        {/* Bandeau : l'état de la tâche à gauche, l'étoile à droite. */}
+        <div className="relative flex items-start gap-2 min-h-[26px]">
+          {task.isCarriedOver && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[11px] font-semibold uppercase tracking-[0.06em]">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                <path d="M20 5v6h-6" />
+              </svg>
+              Reportée
+            </span>
+          )}
+
+          {/*
+            L'étoile a de la place ici, alors elle a un vrai bouton — c'est la
+            raison pour laquelle elle s'efface dans la liste, où sept lignes
+            affichaient sept pastilles pour une action rare.
+          */}
+          {isTop && onTogglePin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              aria-pressed={isPinned}
+              aria-label={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+              title={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+              className={`ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-90 ${
+                isPinned
+                  ? 'bg-idayal-blue-soft dark:bg-idayal-blue/20 text-idayal-blue dark:text-idayal-blue-light'
+                  : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
+              }`}
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l2.4 6.9h7.2l-5.8 4.3 2.2 6.9L12 15.9l-6 4.2 2.2-6.9L2.4 8.9h7.2z" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         {/* Titre */}
-        <div className="relative flex flex-col items-center justify-center px-2 pt-3 pb-2">
+        <div className="relative flex flex-col items-center justify-center px-2 pt-2 pb-2">
           <p className="text-[24px] font-semibold text-center text-idayal-text dark:text-zinc-100 leading-snug tracking-tight2">
             {task.title || 'Tâche'}
           </p>
-          {task.scheduledDate && task.scheduledDate.length > 10 && (
-            <p className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue text-[13px] font-medium tabular">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
+
+          {/*
+            L'échéance est un bouton, pas une étiquette.
+            Le chevron dit qu'on peut la changer ; le toucher ouvre la feuille
+            « Quand ? », la même que le report.
+          */}
+          {isTop && onReschedule && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setWhenOpen(true);
+              }}
+              className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue dark:text-idayal-blue-light text-[13px] font-medium tabular active:scale-95 transition"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="3" />
+                <path d="M8 3v4M16 3v4M3 10h18" />
               </svg>
-              {new Date(task.scheduledDate).toLocaleString('fr-FR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
+              {task.scheduledDate && task.scheduledDate.length > 10
+                ? new Date(task.scheduledDate).toLocaleString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'Choisir un moment'}
+              <span aria-hidden className="opacity-60">▾</span>
+            </button>
           )}
         </div>
 
@@ -299,9 +356,12 @@ export function SwipeCard({
           </div>
         )}
 
+        {/* Chrono et minuteur — fonction secondaire, une ligne sous la tâche. */}
+        {isTop && <CardTimer taskId={task.id} />}
+
         {/* Actions cliquables — indispensables sur ordinateur */}
         {isTop && (
-          <div className="relative flex gap-3">
+          <div className="relative flex gap-3 pt-2">
             <button
               type="button"
               onClick={(e) => {
@@ -311,7 +371,13 @@ export function SwipeCard({
                 } catch {
                   /* ignore */
                 }
-                onPostpone();
+                /*
+                 * Reporter, c'est choisir quand — pas sauter à demain sans rien
+                 * demander. La feuille pose la question ; le balayage vers la
+                 * gauche, lui, garde le geste rapide vers demain.
+                 */
+                if (onReschedule) setWhenOpen(true);
+                else onPostpone();
               }}
               className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange font-semibold text-[15px] active:scale-95 hover:bg-idayal-orange/20 dark:hover:bg-idayal-orange/25 transition"
             >
@@ -361,6 +427,17 @@ export function SwipeCard({
           <span className="mt-2 text-2xl font-bold tracking-tight2">Plus tard</span>
         </div>
       </div>
+
+      {/* Posée hors de la carte : elle couvre l'écran et ne suit pas le balayage. */}
+      {onReschedule && (
+        <WhenSheet
+          open={whenOpen}
+          title={task.title}
+          current={task.scheduledDate}
+          onPick={onReschedule}
+          onClose={() => setWhenOpen(false)}
+        />
+      )}
     </div>
   );
 }

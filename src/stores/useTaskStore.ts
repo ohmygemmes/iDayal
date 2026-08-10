@@ -134,6 +134,8 @@ export interface TaskStore {
   deleteNote: (id: string) => void;
   postponeToTomorrow: (id: string) => void;
   bringToToday: (id: string) => void;
+  /** Pose une échéance quelconque. `null` retire la date. */
+  rescheduleTask: (id: string, scheduledDate: string | null) => void;
   pinTask: (id: string | null) => void;
   /** Déplace `id` juste après `afterId` dans l'ordre de la pile (null = tout devant). */
   placeAfterTask: (id: string, afterId: string | null) => void;
@@ -413,6 +415,38 @@ export function useTaskStore(): TaskStore {
     [registerUndo]
   );
 
+  /**
+   * Repose une tâche à une date choisie.
+   *
+   * `postponeToTomorrow` ne sait faire qu'un pas en avant, et `bringToToday`
+   * qu'un pas en arrière. Modifier l'heure d'un rappel ou choisir « dans trois
+   * jours » demandait une troisième fonction plutôt qu'un empilement des deux.
+   *
+   * Le report automatique est levé : une date posée à la main est un choix, pas
+   * un retard hérité de la veille.
+   */
+  const rescheduleTask = useCallback(
+    (id: string, scheduledDate: string | null) => {
+      setTasks((prev) => {
+        const target = prev.find((t) => t.id === id);
+        if (!target) return prev;
+        const prevScheduled = target.scheduledDate;
+        const prevCarried = target.isCarriedOver;
+        registerUndo('Échéance modifiée', (cur) =>
+          cur.map((t) =>
+            t.id === id
+              ? { ...t, scheduledDate: prevScheduled, isCarriedOver: prevCarried }
+              : t
+          )
+        );
+        return prev.map((t) =>
+          t.id === id ? { ...t, scheduledDate, isCarriedOver: false } : t
+        );
+      });
+    },
+    [registerUndo]
+  );
+
   const bringToToday = useCallback((id: string) => {
     const today = todayISO();
     setTasks((prev) =>
@@ -518,6 +552,7 @@ export function useTaskStore(): TaskStore {
     deleteNote,
     postponeToTomorrow,
     bringToToday,
+    rescheduleTask,
     pinTask,
     placeAfterTask,
     updateSettings,

@@ -12,6 +12,10 @@ interface Props {
   onComplete: (id: string) => void;
   onPostpone: (id: string) => void;
   onPromoteToTop: (id: string) => void;
+  /** Pose l'échéance choisie dans la feuille « Quand ? ». */
+  onReschedule: (id: string, scheduledDate: string) => void;
+  /** Met la tâche en tête du paquet, ou l'en retire si elle y est déjà. */
+  onTogglePin: (id: string) => void;
   onSetNote: (id: string, text: string) => void;
   onAddSubtask: (taskId: string, title: string) => void;
   onToggleSubtask: (taskId: string, subId: string) => void;
@@ -33,6 +37,8 @@ export function CardsView({
   pinnedTaskId,
   onComplete,
   onPostpone,
+  onReschedule,
+  onTogglePin,
   onPromoteToTop,
   onSetNote,
   onAddSubtask,
@@ -131,6 +137,9 @@ export function CardsView({
                 depth={i}
                 onDone={() => handleDone(t.id)}
                 onPostpone={() => handlePostpone(t.id)}
+                onReschedule={(iso) => onReschedule(t.id, iso)}
+                isPinned={pinnedTaskId === t.id}
+                onTogglePin={() => onTogglePin(t.id)}
                 onSetNote={(text) => onSetNote(t.id, text)}
                 onAddSubtask={(title) => onAddSubtask(t.id, title)}
                 onToggleSubtask={(subId) => onToggleSubtask(t.id, subId)}

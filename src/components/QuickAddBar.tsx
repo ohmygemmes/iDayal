@@ -262,7 +262,7 @@ export function QuickAddBar({ onAdd, inputRef: externalRef }: Props) {
           elles : trois pastilles isolées au-dessus d'une liste qui transparaissait.
           Un fond opaque les rassemble en un seul objet, entre la liste et le champ.
         */
-        <div className="mb-2 flex flex-col items-start gap-1.5 p-2.5 rounded-[20px] border border-idayal-border dark:border-idayal-border-dark bg-idayal-bg-elev/92 dark:bg-idayal-bg-dark-elev/92 backdrop-blur-xl shadow-soft animate-fade-in">
+        <div className="mb-2 flex flex-col items-start gap-1.5 p-2.5 rounded-[20px] border border-idayal-border dark:border-idayal-border-dark bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev shadow-elev animate-fade-in">
           {/*
             Le jour retenu, toujours actif : sans date explicite une tâche est
             déjà celle du jour, donc « Aujourd'hui » est l'état par défaut, pas

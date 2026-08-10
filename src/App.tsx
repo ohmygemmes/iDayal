@@ -257,6 +257,21 @@ export default function App() {
     setTab('cards');
   };
 
+  /**
+   * L'étoile de la carte : met la tâche en tête du paquet, ou l'en retire.
+   *
+   * `handlePromoteToTop` ne sait qu'épingler. Sans le retrait, l'étoile
+   * s'allumait sans jamais pouvoir s'éteindre.
+   *
+   * Une seule tâche à la fois porte l'étoile : c'est le modèle existant, et
+   * l'écran Cartes n'en montre qu'une de toute façon.
+   */
+  const handleTogglePin = (id: string) => {
+    store.updateSettings({
+      pinnedTaskId: store.settings.pinnedTaskId === id ? null : id,
+    });
+  };
+
   const handleDueDoNow = () => {
     if (!dueTask) return;
     setDismissedUntil((p) => ({ ...p, [dueTask.id]: FOREVER }));
@@ -318,6 +333,8 @@ export default function App() {
             onComplete={requestComplete}
             onPostpone={store.postponeToTomorrow}
             onPromoteToTop={handlePromoteToTop}
+            onReschedule={store.rescheduleTask}
+            onTogglePin={handleTogglePin}
             onSetNote={store.setTaskNote}
             onAddSubtask={store.addSubtask}
             onToggleSubtask={store.toggleSubtask}

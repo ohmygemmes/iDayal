@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "ios": "npm run build && npx cap sync ios",
     "ios:open": "npx cap open ios",
-    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts && npx --yes tsx src/services/__tests__/syncDecision.test.mts && npx --yes tsx src/services/__tests__/dateShortcuts.test.mts"
+    "test": "npx --yes tsx src/services/__tests__/frenchDateParser.test.mts && npx --yes tsx src/services/__tests__/syncDecision.test.mts && npx --yes tsx src/services/__tests__/dateShortcuts.test.mts && npx --yes tsx src/services/__tests__/timer.test.mts"
   },
   "dependencies": {
     "@capacitor/cli": "^8.5.0",
