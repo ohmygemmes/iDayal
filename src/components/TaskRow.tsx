@@ -124,14 +124,12 @@ export function TaskRow({
   return (
     <li
       ref={swipeRef}
-      className={`relative mb-2 rounded-row overflow-hidden ${
-        exiting ? 'animate-slide-out-right' : ''
-      }`}
+      className={`relative overflow-hidden ${exiting ? 'animate-slide-out-right' : ''}`}
     >
       {/* Fond de suppression, révélé par le glissement */}
       {onDelete && dx < 0 && (
         <div
-          className="absolute inset-0 bg-red-500 flex items-center justify-end pr-5 rounded-row"
+          className="absolute inset-0 bg-red-500 flex items-center justify-end pr-5"
           style={{ opacity: 0.35 + revealed * 0.65 }}
           aria-hidden
         >
@@ -151,42 +149,36 @@ export function TaskRow({
         </div>
       )}
 
+      {/*
+        Une ligne, plus une carte.
+        Un filet d'un pixel sépare aussi bien qu'un fond blanc arrondi, et ne coûte
+        pas la hauteur qu'il prenait : on passe de six tâches visibles à onze.
+        Le fond n'apparaît que pendant le glissement, pour masquer le rouge de
+        suppression posé dessous.
+      */}
       <div
-        className={`group relative flex items-start gap-3 pl-3 pr-3 py-3 bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-row shadow-soft border animate-slide-in-up ${
-          isPinned
-            ? 'border-idayal-blue/50 dark:border-idayal-blue/60 shadow-[0_2px_8px_rgba(59,125,216,0.15)]'
-            : 'border-idayal-border dark:border-idayal-border-dark'
-        }`}
+        className="group relative flex items-start gap-3 px-1 py-3 border-b border-idayal-border dark:border-idayal-border-dark animate-slide-in-up"
         style={{
           transform: `translateX(${dx}px)`,
           transition: swipe.active ? 'none' : 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)',
+          background: dx < 0 ? 'var(--idayal-row-solid)' : undefined,
         }}
       >
-        {/* Accent latéral pour les tâches reportées ou en cours */}
-        {(carried || isPinned) && (
-          <span
-            aria-hidden
-            className={`absolute inset-y-0 left-0 w-[3px] rounded-l-row ${
-              isPinned ? 'bg-idayal-blue' : 'bg-idayal-orange'
-            }`}
-          />
-        )}
-
         <button
           type="button"
           onClick={handleToggle}
           aria-label={completed ? 'Marquer non fait' : 'Marquer comme fait'}
-          className={`mt-0.5 w-[26px] h-[26px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+          className={`mt-px w-[22px] h-[22px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
             completed
-              ? 'bg-idayal-green border-2 border-idayal-green shadow-[0_2px_8px_rgba(61,186,142,0.35)]'
-              : 'bg-transparent border-2 border-zinc-300 dark:border-zinc-600 hover:border-idayal-blue active:scale-90'
+              ? 'bg-idayal-green border-[1.5px] border-idayal-green'
+              : 'bg-transparent border-[1.5px] border-zinc-300 dark:border-zinc-700 hover:border-idayal-blue active:scale-90'
           }`}
         >
           {completed && (
             <svg
               viewBox="0 0 24 24"
-              width="14"
-              height="14"
+              width="12"
+              height="12"
               fill="none"
               stroke="white"
               strokeWidth="3.2"
@@ -198,6 +190,26 @@ export function TaskRow({
             </svg>
           )}
         </button>
+
+        {/*
+          Gouttière d'heure.
+          Sous « Aujourd'hui » l'heure tient en cinq caractères : la poser à gauche
+          plutôt que sous le titre économise une ligne par tâche, et les deux-points
+          alignés donnent sa forme à la journée. Dans « Plus tard » le libellé porte
+          la date entière, trop long pour une gouttière : il reste sous le titre.
+        */}
+        {!showDate && !completed && !editing && (
+          <span
+            aria-hidden={!schedule}
+            className={`flex-shrink-0 w-[38px] mt-px text-[12px] font-semibold tabular text-right leading-[1.35] ${
+              schedule?.overdue
+                ? 'text-idayal-orange'
+                : 'text-idayal-blue dark:text-idayal-blue-light'
+            }`}
+          >
+            {schedule?.label ?? ''}
+          </span>
+        )}
 
         <div className="flex-1 min-w-0">
           {editing ? (
@@ -221,14 +233,20 @@ export function TaskRow({
             />
           ) : (
             <div className="flex items-start gap-1.5">
+              {/*
+                Une flèche qui boucle, pas une horloge.
+                L'ancien pictogramme de report était le cadran exact de celui des
+                heures : sur une tâche à la fois reportée et programmée, deux
+                horloges se suivaient sans dire la même chose.
+              */}
               {carried && (
                 <span
                   className="text-idayal-orange text-[11px] font-medium mt-0.5 leading-snug flex items-center gap-0.5"
                   title="Reportée"
                 >
-                  <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M12 7v5l3 2" />
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 11a8 8 0 1 0-2.3 5.7" />
+                    <path d="M20 5v6h-6" />
                   </svg>
                 </span>
               )}
@@ -259,10 +277,12 @@ export function TaskRow({
             </div>
           )}
 
-          {schedule && !completed && !editing && (
+          {schedule && showDate && !completed && !editing && (
             <p
               className={`text-[12px] mt-0.5 tabular font-medium flex items-center gap-1 ${
-                schedule.overdue ? 'text-idayal-orange' : 'text-idayal-blue'
+                schedule.overdue
+                  ? 'text-idayal-orange'
+                  : 'text-idayal-blue dark:text-idayal-blue-light'
               }`}
             >
               {schedule.hasTime && (
@@ -297,10 +317,15 @@ export function TaskRow({
             onClick={() => onPin(task.id)}
             aria-label={isPinned ? 'Ne plus faire ça maintenant' : 'Je fais ça maintenant'}
             title={isPinned ? 'Ne plus faire ça maintenant' : 'Je fais ça maintenant'}
-            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-90 ${
+            /*
+             * Sans fond ni pastille : sept lignes affichaient sept boutons pleins.
+             * L'étoile garde sa zone tactile, elle cesse d'occuper l'œil — c'est la
+             * carte qui lui donne un vrai bouton.
+             */
+            className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition active:scale-90 ${
               isPinned
-                ? 'bg-idayal-blue text-white shadow-[0_2px_8px_rgba(59,125,216,0.4)]'
-                : 'text-idayal-text-muted hover:text-idayal-blue hover:bg-idayal-blue-soft dark:hover:bg-idayal-blue/20'
+                ? 'text-idayal-blue dark:text-idayal-blue-light'
+                : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
             }`}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

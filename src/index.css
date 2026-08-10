@@ -15,10 +15,24 @@
     linear-gradient(180deg, #f4f5f7 0%, #eef0f4 100%);
   --idayal-bg-gradient-dark: radial-gradient(
       120% 80% at 50% -20%,
-      rgba(59, 125, 216, 0.22),
-      transparent 60%
+      rgba(59, 125, 216, 0.13),
+      transparent 62%
     ),
-    linear-gradient(180deg, #0f1020 0%, #15172a 100%);
+    linear-gradient(180deg, #0a0e14 0%, #0e131b 100%);
+
+  /*
+   * Fond opaque d'une ligne pendant le glissement de suppression.
+   *
+   * Les lignes n'ont plus de fond : elles laissent voir le dégradé de la page.
+   * Mais le rouge de suppression est posé *dessous* — sans fond opaque au moment
+   * du geste, il transparaîtrait en permanence. On ne le pose donc que pendant
+   * le glissement, où le mouvement masque la légère différence avec le dégradé.
+   */
+  --idayal-row-solid: #f2f3f6;
+}
+
+html.dark {
+  --idayal-row-solid: #0c1118;
 }
 
 html,
@@ -42,8 +56,8 @@ body {
 }
 
 html.dark body {
-  background: #0f1020;
-  color: #ececf2;
+  background: #0a0e14;
+  color: #e9eef6;
 }
 
 /* Largeur partagée par le shell, la tab bar, la barre de saisie et les modales. */

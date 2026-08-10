@@ -14,15 +14,30 @@ export default {
           blue: '#3B7DD8',
           'blue-soft': '#E6EFFB',
           'blue-dark': '#2C5FA8',
+          /*
+           * Le bleu de marque perd sa lisibilité sur fond sombre : sur #0A0E14 il
+           * tombe sous le seuil de contraste du texte. Cette variante éclaircie le
+           * remplace partout où du bleu porte de l'information dans le thème sombre.
+           */
+          'blue-light': '#74A8EC',
           bg: '#F4F5F7',
           'bg-elev': '#FFFFFF',
-          'bg-dark': '#0F1020',
-          'bg-dark-elev': '#1B1D33',
+          /*
+           * Un fond d'encre, pas un gris retourné. L'ancien #0F1020 tirait sur le
+           * violet et restait clair : les lignes de texte s'y écrasaient au lieu d'y
+           * flotter.
+           */
+          'bg-dark': '#0A0E14',
+          'bg-dark-elev': '#141A23',
           text: '#1A1E22',
           'text-secondary': '#5A6573',
           'text-muted': '#8C95A1',
-          border: 'rgba(15, 16, 32, 0.06)',
-          'border-dark': 'rgba(255, 255, 255, 0.08)',
+          border: 'rgba(15, 16, 32, 0.07)',
+          /*
+           * À peine visible, volontairement : dans le noir, une séparation marquée
+           * redécoupe l'écran en cases et annule le bénéfice d'avoir retiré les cartes.
+           */
+          'border-dark': 'rgba(255, 255, 255, 0.07)',
         },
       },
       fontFamily: {

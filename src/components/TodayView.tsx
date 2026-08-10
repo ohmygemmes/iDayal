@@ -16,15 +16,19 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function formatTodayLabel(): string {
+/**
+ * Le jour d'un côté, le quantième de l'autre.
+ *
+ * La date est devenue le titre de l'écran : « Aujourd'hui » n'apprenait rien que
+ * l'onglet actif ne disait déjà. Les deux morceaux sont séparés pour que le jour
+ * porte le poids et que le quantième reste en second plan.
+ */
+function todayParts(): { weekday: string; rest: string } {
   const d = new Date();
-  return capitalize(
-    d.toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    })
-  );
+  return {
+    weekday: capitalize(d.toLocaleDateString('fr-FR', { weekday: 'long' })),
+    rest: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }),
+  };
 }
 
 export function TodayView({
@@ -36,23 +40,42 @@ export function TodayView({
   onClearCompleted,
   pinnedTaskId,
 }: Props) {
-  const { carried, fresh, done } = useMemo(() => {
+  const { pending, carriedCount, done } = useMemo(() => {
     const carried = tasks.filter((t) => !t.completedDate && t.isCarriedOver);
     const fresh = tasks.filter((t) => !t.completedDate && !t.isCarriedOver);
     const done = tasks.filter((t) => !!t.completedDate);
-    return { carried, fresh, done };
+
+    /*
+     * Ce qui porte une heure vient d'abord, dans l'ordre du jour ; le reste suit.
+     *
+     * Sans ce tri, la gouttière d'heure afficherait 12:00 au-dessus de 09:00 :
+     * une colonne de chiffres dans le désordre se lit comme un défaut, pas comme
+     * une liste. Une date nue ne compte pas — seule une heure situe dans la journée.
+     */
+    const atMinute = (t: Task): number => {
+      const s = t.scheduledDate;
+      if (!s || s.length <= 10) return Number.POSITIVE_INFINITY;
+      const ms = new Date(s).getTime();
+      return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+    };
+
+    // `sort` est stable : à défaut d'heure, les reportées restent devant les neuves.
+    const pending = [...carried, ...fresh].sort((a, b) => atMinute(a) - atMinute(b));
+
+    return { pending, carriedCount: carried.length, done };
   }, [tasks]);
 
-  const remaining = carried.length + fresh.length;
+  const remaining = pending.length;
+  const day = todayParts();
 
   return (
     <div className="flex flex-col h-full">
       <header className="px-5 pt-2 pb-3">
-        <p className="text-[12px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 mb-0.5">
-          {formatTodayLabel()}
-        </p>
-        <h1 className="text-[28px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2 leading-none">
-          Aujourd'hui
+        <h1 className="text-[28px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2 leading-[1.05]">
+          {day.weekday}{' '}
+          <span className="font-medium text-idayal-text-muted dark:text-zinc-500">
+            {day.rest}
+          </span>
         </h1>
         <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1.5">
           {remaining === 0 ? (
@@ -63,9 +86,9 @@ export function TodayView({
                 {remaining}
               </span>{' '}
               à faire
-              {carried.length > 0 && (
+              {carriedCount > 0 && (
                 <span className="text-idayal-orange">
-                  {' '}· {carried.length} report{carried.length > 1 ? 's' : ''}
+                  {' '}· {carriedCount} report{carriedCount > 1 ? 's' : ''}
                 </span>
               )}
             </span>
@@ -90,10 +113,7 @@ export function TodayView({
         )}
 
         <ul>
-          {carried.map((t) => (
-            <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onEditTitle={onEditTitle} onPin={onPin} isPinned={pinnedTaskId === t.id} />
-          ))}
-          {fresh.map((t) => (
+          {pending.map((t) => (
             <TaskRow key={t.id} task={t} onToggle={onToggle} onDelete={onDelete} onEditTitle={onEditTitle} onPin={onPin} isPinned={pinnedTaskId === t.id} />
           ))}
         </ul>
