@@ -17,7 +17,8 @@ import { useTaskStore } from './stores/useTaskStore';
 import { toLocalISODate, toLocalISODateTime } from './services/localDate';
 import type { TabKey } from './types/task';
 
-const APP_VERSION = '1.2.0';
+/** Injectée depuis `package.json` par Vite : voir `vite.config.ts`. */
+const APP_VERSION = __APP_VERSION__;
 const SNOOZE_MS = 10 * 60 * 1000;
 const FOREVER = Number.MAX_SAFE_INTEGER;
 

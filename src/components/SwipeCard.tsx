@@ -167,9 +167,9 @@ export function SwipeCard({
           tâche seule, intenable dès qu'on ajoutait trois étapes et une note —
           le contenu se retrouvait comprimé sous un espace qui ne servait à rien.
         */}
-        <div className={`relative flex flex-col gap-2 pb-2.5 ${bare ? 'flex-1' : ''}`}>
+        <div className={`relative flex flex-col items-center text-center gap-2 pb-2.5 ${bare ? 'flex-1' : ''}`}>
           {task.isCarriedOver && (
-            <span className="self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[10.5px] font-semibold uppercase tracking-[0.06em]">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[10.5px] font-semibold uppercase tracking-[0.06em]">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 11a8 8 0 1 0-2.3 5.7" />
                 <path d="M20 5v6h-6" />
@@ -184,7 +184,7 @@ export function SwipeCard({
 
           {/* Deux commandes discrètes, sur une ligne, sous le titre. */}
           {isTop && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-center gap-1.5">
               {onTogglePin && (
                 <button
                   type="button"
