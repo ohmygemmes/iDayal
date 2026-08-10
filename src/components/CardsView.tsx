@@ -45,7 +45,32 @@ export function CardsView({
   onToggleSubtask,
   onDeleteSubtask,
 }: Props) {
-  const stack = useMemo(() => buildStack(todayTasks, pinnedTaskId), [todayTasks, pinnedTaskId]);
+  /*
+   * Tâches déjà arbitrées pendant cette session, renvoyées en fin de paquet.
+   *
+   * Choisir une échéance, c'est trier : la carte doit quitter le dessus, comme
+   * après « Fait » ou un balayage. Or répondre « Aujourd'hui » la laisse dans la
+   * journée — donc au même endroit, et on tournait en rond sur la même tâche.
+   *
+   * L'ordre ne vit que le temps de l'écran : demain, la journée se réordonne
+   * d'elle-même, et rien de tout cela n'a à voyager jusqu'au serveur.
+   */
+  const [pushedBack, setPushedBack] = useState<string[]>([]);
+
+  const stack = useMemo(() => {
+    const base = buildStack(todayTasks, pinnedTaskId);
+    if (pushedBack.length === 0) return base;
+    const front = base.filter((t) => !pushedBack.includes(t.id));
+    const back = pushedBack
+      .map((id) => base.find((t) => t.id === id))
+      .filter((t): t is Task => !!t);
+    return [...front, ...back];
+  }, [todayTasks, pinnedTaskId, pushedBack]);
+
+  const handleReschedule = (id: string, scheduledDate: string) => {
+    onReschedule(id, scheduledDate);
+    setPushedBack((prev) => [...prev.filter((x) => x !== id), id]);
+  };
 
   /**
    * Dérivé des données plutôt que compté à la volée : le compteur survit à un
@@ -106,30 +131,45 @@ export function CardsView({
 
   return (
     <div className="flex flex-col h-full">
-      <header className="px-5 pt-2 pb-3">
-        <p className="text-[12px] uppercase tracking-[0.08em] font-semibold text-idayal-text-muted dark:text-zinc-500 mb-0.5">
-          Une à la fois
-        </p>
-        <h1 className="text-[28px] font-bold text-idayal-text dark:text-zinc-100 tracking-tight2 leading-none">
+      {/*
+        Une ligne, pas trois.
+        « Cartes » figurait déjà sur l'onglet actif, et les deux boutons du bas
+        disent « Plus tard » et « Fait » : le rappel du balayage était une leçon
+        répétée à chaque ouverture, au prix de la hauteur dont la carte manque.
+        Le rappel clavier reste, mais seulement là où il y a un clavier.
+      */}
+      <header className="px-5 pt-2 pb-2 flex items-baseline gap-2">
+        <h1 className="text-[15px] font-semibold text-idayal-text dark:text-zinc-100 tracking-tight2">
           Cartes
         </h1>
-        <p className="text-[13px] text-idayal-text-secondary dark:text-zinc-400 mt-1.5">
-          Swipe <span className="text-idayal-green font-medium">→</span> pour finir,{' '}
-          <span className="text-idayal-orange font-medium">←</span> pour reporter
-          <span className="kbd-hint items-center gap-1 ml-2 text-idayal-text-muted">
-            <kbd>←</kbd>
-            <kbd>→</kbd>
-          </span>
-        </p>
+        <span className="text-[12px] text-idayal-text-muted dark:text-zinc-500">
+          une à la fois
+        </span>
+        <span className="kbd-hint items-center gap-1 ml-auto text-idayal-text-muted">
+          <kbd>←</kbd>
+          <kbd>→</kbd>
+        </span>
       </header>
 
-      <div className="flex-1 min-h-0 px-5 pb-48 flex flex-col">
+      {/*
+        La réserve du bas ne couvre plus que ce qu'il y a dessous.
+        192 px étaient gardés pour la barre de saisie et les onglets, qui en
+        occupent une quarantaine de moins : c'est autant de hauteur rendue à la
+        carte, qui en manque dès qu'une tâche porte des étapes et une note.
+      */}
+      <div className="flex-1 min-h-0 px-5 pb-40 flex flex-col">
         {stack.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <CompletionScreen total={doneCount} />
           </div>
         ) : (
-          <div className="relative flex-1 max-h-[520px] mt-4">
+          /*
+            La carte prend la hauteur disponible.
+            Le plafond de 520 px laissait un grand vide au milieu quand la tâche
+            était courte, et écrasait les étapes et la note dès qu'on en ajoutait
+            — c'est-à-dire précisément quand la carte a le plus à montrer.
+          */
+          <div className="relative flex-1 min-h-0 mt-3">
             {visible.map((t, i) => (
               <SwipeCard
                 key={t.id}
@@ -137,7 +177,7 @@ export function CardsView({
                 depth={i}
                 onDone={() => handleDone(t.id)}
                 onPostpone={() => handlePostpone(t.id)}
-                onReschedule={(iso) => onReschedule(t.id, iso)}
+                onReschedule={(iso) => handleReschedule(t.id, iso)}
                 isPinned={pinnedTaskId === t.id}
                 onTogglePin={() => onTogglePin(t.id)}
                 onSetNote={(text) => onSetNote(t.id, text)}

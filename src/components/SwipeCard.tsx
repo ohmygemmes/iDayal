@@ -129,7 +129,7 @@ export function SwipeCard({
       className="absolute inset-0 select-none"
       style={{ ...style, touchAction: isTop ? 'none' : 'auto' }}
     >
-      <div className="relative w-full h-full bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-card shadow-card border border-idayal-border dark:border-idayal-border-dark flex flex-col p-5 overflow-hidden">
+      <div className="relative w-full h-full bg-idayal-bg-elev dark:bg-idayal-bg-dark-elev rounded-card shadow-card border border-idayal-border dark:border-idayal-border-dark flex flex-col p-4 overflow-hidden">
         <div
           aria-hidden
           className="absolute top-0 left-0 right-0 h-1/3 pointer-events-none"
@@ -139,11 +139,18 @@ export function SwipeCard({
           }}
         />
 
-        {/* Bandeau : l'état de la tâche à gauche, l'étoile à droite. */}
-        <div className="relative flex items-start gap-2 min-h-[26px]">
+        {/*
+          Le titre en haut, ses commandes juste dessous, et tout le reste de la
+          hauteur pour les étapes et la note.
+
+          Le titre était centré au milieu d'un grand vide : agréable sur une
+          tâche seule, intenable dès qu'on ajoutait trois étapes et une note —
+          le contenu se retrouvait comprimé sous un espace qui ne servait à rien.
+        */}
+        <div className="relative flex flex-col gap-2 pb-2.5">
           {task.isCarriedOver && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[11px] font-semibold uppercase tracking-[0.06em]">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <span className="self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange text-[10.5px] font-semibold uppercase tracking-[0.06em]">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 11a8 8 0 1 0-2.3 5.7" />
                 <path d="M20 5v6h-6" />
               </svg>
@@ -151,66 +158,67 @@ export function SwipeCard({
             </span>
           )}
 
-          {/*
-            L'étoile a de la place ici, alors elle a un vrai bouton — c'est la
-            raison pour laquelle elle s'efface dans la liste, où sept lignes
-            affichaient sept pastilles pour une action rare.
-          */}
-          {isTop && onTogglePin && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTogglePin();
-              }}
-              aria-pressed={isPinned}
-              aria-label={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
-              title={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
-              className={`ml-auto flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition active:scale-90 ${
-                isPinned
-                  ? 'bg-idayal-blue-soft dark:bg-idayal-blue/20 text-idayal-blue dark:text-idayal-blue-light'
-                  : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
-              }`}
-            >
-              <svg viewBox="0 0 24 24" width="17" height="17" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2l2.4 6.9h7.2l-5.8 4.3 2.2 6.9L12 15.9l-6 4.2 2.2-6.9L2.4 8.9h7.2z" />
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {/* Titre */}
-        <div className="relative flex flex-col items-center justify-center px-2 pt-2 pb-2">
-          <p className="text-[24px] font-semibold text-center text-idayal-text dark:text-zinc-100 leading-snug tracking-tight2">
+          <p className="text-[21px] font-semibold text-idayal-text dark:text-zinc-100 leading-snug tracking-tight2">
             {task.title || 'Tâche'}
           </p>
 
-          {/*
-            L'échéance est un bouton, pas une étiquette.
-            Le chevron dit qu'on peut la changer ; le toucher ouvre la feuille
-            « Quand ? », la même que le report.
-          */}
-          {isTop && onReschedule && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setWhenOpen(true);
-              }}
-              className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue dark:text-idayal-blue-light text-[13px] font-medium tabular active:scale-95 transition"
-            >
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="5" width="18" height="16" rx="3" />
-                <path d="M8 3v4M16 3v4M3 10h18" />
-              </svg>
-              {task.scheduledDate && task.scheduledDate.length > 10
-                ? new Date(task.scheduledDate).toLocaleString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : 'Choisir un moment'}
-              <span aria-hidden className="opacity-60">▾</span>
-            </button>
+          {/* Deux commandes discrètes, sur une ligne, sous le titre. */}
+          {isTop && (
+            <div className="flex items-center gap-1.5">
+              {onTogglePin && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTogglePin();
+                  }}
+                  aria-pressed={isPinned}
+                  aria-label={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+                  title={isPinned ? 'Ne plus garder en tête' : 'Garder en tête du paquet'}
+                  className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition active:scale-90 ${
+                    isPinned
+                      ? 'bg-idayal-blue-soft dark:bg-idayal-blue/20 text-idayal-blue dark:text-idayal-blue-light'
+                      : 'text-zinc-300 dark:text-zinc-700 hover:text-idayal-blue'
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l2.4 6.9h7.2l-5.8 4.3 2.2 6.9L12 15.9l-6 4.2 2.2-6.9L2.4 8.9h7.2z" />
+                  </svg>
+                </button>
+              )}
+
+              {/*
+                L'échéance est un bouton, pas une étiquette. Sans heure posée, il
+                se réduit au seul calendrier : proposer « Choisir un moment » en
+                toutes lettres pesait plus lourd que la tâche elle-même.
+              */}
+              {onReschedule && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setWhenOpen(true);
+                  }}
+                  aria-label="Choisir un moment"
+                  title="Choisir un moment"
+                  className="flex-shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-full bg-idayal-blue-soft dark:bg-idayal-blue/15 text-idayal-blue dark:text-idayal-blue-light text-[12.5px] font-semibold tabular active:scale-95 transition"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="16" rx="3" />
+                    <path d="M8 3v4M16 3v4M3 10h18" />
+                  </svg>
+                  {task.scheduledDate && task.scheduledDate.length > 10 && (
+                    <>
+                      {new Date(task.scheduledDate).toLocaleString('fr-FR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      <span aria-hidden className="opacity-60 text-[10px]">▾</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -331,11 +339,11 @@ export function SwipeCard({
 
         {/* Ajouts rapides */}
         {isTop && (
-          <div className="relative flex gap-2 pt-1 pb-2">
+          <div className="relative flex gap-2 pt-1 pb-1.5">
             <button
               type="button"
               onClick={() => setSubOpen(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-zinc-100/80 dark:bg-zinc-800/60 text-idayal-text-secondary dark:text-zinc-300 text-[12.5px] font-semibold active:scale-95 hover:text-idayal-blue transition"
+              className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-zinc-100/80 dark:bg-zinc-800/60 text-idayal-text-secondary dark:text-zinc-300 text-[12px] font-semibold active:scale-95 hover:text-idayal-blue transition"
             >
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M12 5v14M5 12h14" />
@@ -345,7 +353,7 @@ export function SwipeCard({
             <button
               type="button"
               onClick={() => setNoteOpen(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-zinc-100/80 dark:bg-zinc-800/60 text-idayal-text-secondary dark:text-zinc-300 text-[12.5px] font-semibold active:scale-95 hover:text-idayal-blue transition"
+              className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg bg-zinc-100/80 dark:bg-zinc-800/60 text-idayal-text-secondary dark:text-zinc-300 text-[12px] font-semibold active:scale-95 hover:text-idayal-blue transition"
             >
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 4h11l4 4v12H5z" />
@@ -361,7 +369,7 @@ export function SwipeCard({
 
         {/* Actions cliquables — indispensables sur ordinateur */}
         {isTop && (
-          <div className="relative flex gap-3 pt-2">
+          <div className="relative flex gap-2 pt-1.5">
             <button
               type="button"
               onClick={(e) => {
@@ -379,9 +387,9 @@ export function SwipeCard({
                 if (onReschedule) setWhenOpen(true);
                 else onPostpone();
               }}
-              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange font-semibold text-[15px] active:scale-95 hover:bg-idayal-orange/20 dark:hover:bg-idayal-orange/25 transition"
+              className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-idayal-orange-soft dark:bg-idayal-orange/15 text-idayal-orange font-semibold text-[14px] active:scale-95 hover:bg-idayal-orange/20 dark:hover:bg-idayal-orange/25 transition"
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
               Plus tard
@@ -397,10 +405,10 @@ export function SwipeCard({
                 }
                 onDone();
               }}
-              className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-idayal-green text-white font-semibold text-[15px] shadow-[0_6px_16px_rgba(61,186,142,0.35)] active:scale-95 hover:bg-idayal-green-dark transition"
+              className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-idayal-green text-white font-semibold text-[14px] shadow-[0_4px_12px_rgba(61,186,142,0.30)] active:scale-95 hover:bg-idayal-green-dark transition"
             >
               Fait
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12.5l4.5 4.5L20 7" />
               </svg>
             </button>
