@@ -37,11 +37,33 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && !isNativeShell()) {
    * On ne recharge donc que s'il y avait déjà un contrôleur, c'est-à-dire en
    * cas de vraie mise à jour.
    */
+  /*
+   * Un rechargement par onglet, pas un de plus.
+   *
+   * Le garde-fou était une variable de module — donc effacée par le
+   * rechargement même qu'elle devait empêcher. Il ne pouvait rien garder.
+   *
+   * Et la boucle est facile à amorcer : le service worker appelle
+   * `skipWaiting()` puis `clients.claim()`, ce qui déclenche
+   * « controllerchange », donc un rechargement, donc une nouvelle page qui
+   * réenregistre et redemande une mise à jour. Il suffit que le fichier servi
+   * varie d'une requête à l'autre — plusieurs mises en ligne rapprochées
+   * derrière un réseau de diffusion suffisent — pour que ça ne s'arrête jamais.
+   *
+   * `sessionStorage` survit au rechargement et meurt avec l'onglet : c'est
+   * exactement la portée qu'il faut. En cas de stockage refusé, on ne recharge
+   * pas du tout — une version périmée vaut mieux qu'une page qui clignote.
+   */
+  const RELOADED_KEY = 'idayal:sw-reloaded';
   const hadController = Boolean(navigator.serviceWorker.controller);
-  let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloading) return;
-    reloading = true;
+    if (!hadController) return;
+    try {
+      if (sessionStorage.getItem(RELOADED_KEY)) return;
+      sessionStorage.setItem(RELOADED_KEY, '1');
+    } catch {
+      return;
+    }
     window.location.reload();
   });
 
